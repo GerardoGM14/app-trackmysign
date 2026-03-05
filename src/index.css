@@ -1,0 +1,64 @@
+@import "tailwindcss";
+
+:root {
+  /* Font Family - Global Update to Segoe UI */
+  --font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+
+  /* SaaS Brand Colors - Flat Design */
+  --primary: #4f46e5;
+  --secondary: #64748b;
+  --background: #f8fafc;
+  --surface: #ffffff;
+  --border: #e2e8f0;
+  --text-main: #0f172a;
+  --text-muted: #64748b;
+}
+
+@theme {
+  --color-brand-primary: var(--primary);
+  --color-brand-secondary: var(--secondary);
+  --color-brand-bg: var(--background);
+  --color-brand-surface: var(--surface);
+  --color-brand-border: var(--border);
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-family);
+  background-color: var(--background);
+  color: var(--text-main);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Base styles for Flat Design (No shadows, no gradients) */
+* {
+  box-shadow: none !important;
+  background-image: none !important;
+}
+
+.flat-card {
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+}
+
+.btn-flat {
+  padding: 0.5rem 1rem;
+  border-radius: 0.375rem;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+@keyframes spin-infinite {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin-infinite {
+  animation: spin-infinite 1.8s linear infinite;
+}

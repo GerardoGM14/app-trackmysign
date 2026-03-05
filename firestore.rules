@@ -1,0 +1,29 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper function to check if the user belongs to a tenant
+    function isUserInTenant(tenantId) {
+      return request.auth != null && 
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.tenantId == tenantId;
+    }
+
+    // Tenant-specific data
+    match /tenants/{tenantId} {
+      // Only system admins or users assigned to this tenant can read their own tenant config
+      allow read: if isUserInTenant(tenantId);
+      
+      // All data inside a tenant must be siloed
+      match /{collectionPath=**} {
+        allow read, write: if isUserInTenant(tenantId);
+      }
+    }
+
+    // User profiles
+    match /users/{userId} {
+      allow read: if request.auth != null && (request.auth.uid == userId || isUserInTenant(resource.data.tenantId));
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+  }
+}
