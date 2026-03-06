@@ -62,3 +62,12 @@ body {
 .animate-spin-infinite {
   animation: spin-infinite 1.8s linear infinite;
 }
+
+.custom-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  display: none;
+}

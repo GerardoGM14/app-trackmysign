@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { IoCheckmark, IoClose } from "react-icons/io5";
+import { FaCheckCircle } from "react-icons/fa";
+import { BiSolidXCircle } from "react-icons/bi";
 
 export type ToastType = 'success' | 'error';
 
@@ -54,17 +55,9 @@ export default function Toast({ message, type, duration = 5000, onClose }: Toast
             {/* Icon Area */}
             <div className="flex-shrink-0">
                 {type === 'success' ? (
-                    <div className="bg-green-100 p-2 rounded-full overflow-hidden">
-                        <div className="bg-green-500 rounded-full w-6 h-6 flex items-center justify-center text-white">
-                            <IoCheckmark size={16} strokeWidth={2} />
-                        </div>
-                    </div>
+                    <FaCheckCircle size={22} className="text-emerald-500" />
                 ) : (
-                    <div className="bg-red-100 p-2 rounded-full overflow-hidden">
-                        <div className="bg-red-500 rounded-full w-6 h-6 flex items-center justify-center text-white">
-                            <IoClose size={16} strokeWidth={2} />
-                        </div>
-                    </div>
+                    <BiSolidXCircle size={24} className="text-rose-500" />
                 )}
             </div>
 
@@ -78,21 +71,11 @@ export default function Toast({ message, type, duration = 5000, onClose }: Toast
                 </p>
             </div>
 
-            {/* Manual Close Button */}
-            <button
-                onClick={() => {
-                    setIsVisible(false);
-                    setTimeout(onClose, 300);
-                }}
-                className="text-slate-400 hover:text-slate-600 transition-colors"
-            >
-                <IoClose size={20} />
-            </button>
 
             {/* Progress Bar (Optional, for visual flair) */}
             <div className="absolute bottom-0 left-0 h-1 bg-slate-50 w-full rounded-b-2xl overflow-hidden">
                 <div
-                    className={`h-full transition-all duration-[5000ms] linear ${type === 'success' ? 'bg-green-500' : 'bg-red-500'}`}
+                    className={`h-full transition-all duration-[5000ms] linear ${type === 'success' ? 'bg-emerald-500' : 'bg-rose-500'}`}
                     style={{ width: isVisible ? '0%' : '100%' }}
                 />
             </div>

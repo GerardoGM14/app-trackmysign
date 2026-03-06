@@ -8,6 +8,7 @@ import { FcGoogle } from "react-icons/fc";
 import logo from '../assets/Login/logo-trackmysign.png';
 import LoadingOverlay from '../components/LoadingOverlay';
 import { useToast } from '../context/ToastContext';
+import { useAuth } from '../context/AuthContext';
 
 const SLIDES = [
     {
@@ -38,6 +39,7 @@ export default function Login() {
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const { showToast } = useToast();
+    const { setMockRole } = useAuth();
     const [loading, setLoading] = useState(false);
     const [currentSlide, setCurrentSlide] = useState(0);
     const [loginMode, setLoginMode] = useState<'email' | 'google'>('email');
@@ -56,6 +58,23 @@ export default function Login() {
             showToast('Please enter a valid email address.', 'error');
             return;
         }
+
+        // --- DEV MOCK INTERCEPTOR ---
+        const mockUsers: Record<string, { role: 'superadmin' | 'admin' | 'employee' | 'client', pass: string }> = {
+            'superadmin@trackmysign.com': { role: 'superadmin', pass: 'superadmin123' },
+            'admin@shop.com': { role: 'admin', pass: 'admin123' },
+            'employee@shop.com': { role: 'employee', pass: 'employee123' },
+            'client@customer.com': { role: 'client', pass: 'client123' },
+        };
+
+        if (mockUsers[email] && password === mockUsers[email].pass) {
+            setLoading(true);
+            setMockRole(mockUsers[email].role);
+            showToast(`Mock Login: Welcome ${mockUsers[email].role}`, 'success');
+            setLoading(false);
+            return;
+        }
+        // ----------------------------
 
         setLoading(true);
         try {

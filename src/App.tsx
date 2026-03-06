@@ -14,6 +14,8 @@ import AdminDashboard from './roles/admin/pages/Dashboard';
 import EmployeeDashboard from './roles/employee/pages/Dashboard';
 import ClientDashboard from './roles/client/pages/Dashboard';
 
+import SuperAdminLayout from './roles/superadmin/layouts/SuperAdminLayout';
+
 function AppRoutes() {
   const { user, role, loading } = useAuth();
 
@@ -34,7 +36,7 @@ function AppRoutes() {
   }
 
   // Dashboard component based on role
-  const getDashboard = () => {
+  const getDashboardContent = () => {
     switch (role) {
       case 'superadmin': return <SuperAdminDashboard />;
       case 'admin': return <AdminDashboard />;
@@ -48,10 +50,23 @@ function AppRoutes() {
     }
   };
 
+  // Wrapper based on role for separate layouts
+  if (role === 'superadmin') {
+    return (
+      <SuperAdminLayout>
+        <Routes>
+          <Route path="/dashboard" element={<SuperAdminDashboard />} />
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        </Routes>
+      </SuperAdminLayout>
+    );
+  }
+
   return (
     <DashboardLayout>
       <Routes>
-        <Route path="/dashboard" element={getDashboard()} />
+        <Route path="/dashboard" element={getDashboardContent()} />
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>

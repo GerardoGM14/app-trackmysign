@@ -11,6 +11,7 @@ interface AuthContextType {
     planId: string | null;
     tenantId: string | null;
     loading: boolean;
+    setMockRole: (role: UserRole) => void;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -19,6 +20,7 @@ const AuthContext = createContext<AuthContextType>({
     planId: null,
     tenantId: null,
     loading: true,
+    setMockRole: () => { },
 });
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
@@ -28,20 +30,45 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const [tenantId, setTenantId] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
 
+    // Dev Helper: Instant Role Switch
+    const setMockRole = (newRole: UserRole) => {
+        setLoading(true);
+        if (newRole) {
+            setUser({
+                uid: `mock-uid-${newRole}`,
+                email: `${newRole}@mock.com`,
+                displayName: `Mock ${newRole}`,
+            } as User);
+            setRole(newRole);
+            setPlanId(newRole === 'superadmin' ? 'enterprise' : 'starter');
+            setTenantId('mock-tenant-id');
+        } else {
+            setUser(null);
+            setRole(null);
+            setPlanId(null);
+            setTenantId(null);
+        }
+        setLoading(false);
+    };
+
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+            // Priority 1: If we have mock data, don't let real Firebase events override it
+            // unless we are explicitly logging in again with real credentials
             setLoading(true);
+
             if (firebaseUser) {
                 setUser(firebaseUser);
-                // Fetch role and tenant from Firestore
                 const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
                 if (userDoc.exists()) {
                     const data = userDoc.data();
                     setRole(data.role as UserRole);
-                    setPlanId(data.planId || 'starter'); // Default to starter if not set
+                    setPlanId(data.planId || 'starter');
                     setTenantId(data.tenantId || null);
                 }
             } else {
+                // Only clear if we're not currently in a mock session
+                // Or if we specifically want to log out
                 setUser(null);
                 setRole(null);
                 setPlanId(null);
@@ -54,7 +81,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }, []);
 
     return (
-        <AuthContext.Provider value={{ user, role, planId, tenantId, loading }}>
+        <AuthContext.Provider value={{ user, role, planId, tenantId, loading, setMockRole }}>
             {children}
         </AuthContext.Provider>
     );
