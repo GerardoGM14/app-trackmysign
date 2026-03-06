@@ -20,7 +20,7 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }: SidebarProps) {
 
     return (
         <aside
-            className={`${sidebarOpen ? 'w-64' : 'w-20'} bg-[#111936] flex flex-col transition-all duration-300 relative z-20 shrink-0 border-r border-white/5 group/sidebar`}
+            className={`${sidebarOpen ? 'w-64' : 'w-20'} h-full bg-[#111936] flex flex-col transition-all duration-300 relative z-50 shrink-0 border-r border-white/5 group/sidebar`}
         >
             {/* Logo Area & Toggle Pestañita */}
             <div className="h-16 flex items-center justify-between px-6 border-b border-white/5 shrink-0 relative">
@@ -44,14 +44,23 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }: SidebarProps) {
                     )}
                 </div>
 
-                {/* The "Pestañita" Toggle */}
+                {/* Mobile Close Button (Hidden on Desktop) */}
+                <button
+                    onClick={() => setSidebarOpen(false)}
+                    className="lg:hidden w-8 h-8 flex items-center justify-center text-white/40 hover:text-white transition-colors"
+                >
+                    <BsChevronLeft size={20} />
+                </button>
+
+                {/* Desktop Toggle "Pestañita" (Hidden on Mobile) */}
                 <button
                     onClick={() => setSidebarOpen(!sidebarOpen)}
                     className={`
-                        absolute -right-3 top-1/2 -translate-y-1/2 
+                        hidden lg:flex absolute -right-3 top-1/2 -translate-y-1/2 
                         w-6 h-6 bg-[#111936] border border-white/10 rounded-full 
-                        flex items-center justify-center text-white/40 hover:text-white hover:bg-blue-600 
-                        transition-all duration-300 z-30 shadow-xl cursor-pointer
+                        items-center justify-center text-white/40 hover:text-white hover:bg-blue-600 
+                        transition-all duration-300 z-[60] shadow-xl cursor-pointer
+                        backdrop-blur-sm
                         ${sidebarOpen ? 'opacity-100' : 'opacity-0 group-hover/sidebar:opacity-100'}
                     `}
                 >
@@ -101,7 +110,7 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }: SidebarProps) {
                         </div>
 
                         <div className="flex items-center gap-1.5 px-0.5">
-                            <span className="text-[11px] font-medium text-blue-400/60 whitespace-nowrap">
+                            <span className="text-[11px] font-medium text-white whitespace-nowrap">
                                 716.80 GB free of 1024 GB
                             </span>
                         </div>

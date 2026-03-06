@@ -12,13 +12,13 @@ export default function SuperAdminDashboard() {
     return (
         <div className="space-y-10 animate-in fade-in duration-700 slide-in-from-bottom-4">
             {/* Page Header */}
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 sm:gap-0">
                 <div>
-                    <h1 className="text-3xl font-semibold text-slate-900 tracking-tight">SaaS Fleet Control</h1>
-                    <p className="text-slate-500 font-medium mt-1">Global ecosystem overview and performance monitoring.</p>
+                    <h1 className="text-2xl sm:text-3xl font-semibold text-slate-900 tracking-tight">SaaS Fleet Control</h1>
+                    <p className="text-slate-500 font-medium mt-1 text-sm sm:text-base">Global ecosystem overview and performance monitoring.</p>
                 </div>
-                <div className="flex gap-4">
-                    <button className="flex items-center gap-2 bg-slate-900 text-white px-5 py-2.5 rounded-xl font-semibold text-xs uppercase tracking-widest hover:bg-slate-800 transition-all shadow-lg shadow-slate-900/20 active:scale-95">
+                <div className="flex gap-4 self-start sm:self-auto">
+                    <button className="flex items-center gap-2 bg-slate-900 text-white px-5 py-2.5 rounded-xl font-semibold text-[10px] sm:text-xs uppercase tracking-widest hover:bg-slate-800 transition-all shadow-lg shadow-slate-900/20 active:scale-95 whitespace-nowrap">
                         <BsPlusCircle />
                         New Tenant
                     </button>
@@ -127,19 +127,19 @@ export default function SuperAdminDashboard() {
 
 function KPICard({ title, value, icon, trend, positive, color }: { title: string, value: string, icon: any, trend: string, positive: boolean, color: string }) {
     return (
-        <div className="bg-white rounded-[40px] p-7 border border-slate-100 shadow-xl shadow-slate-200/40 flex flex-col justify-between group hover:border-blue-100 transition-all">
+        <div className="bg-white rounded-[32px] sm:rounded-[40px] p-5 sm:p-7 border border-slate-100 shadow-xl shadow-slate-200/40 flex flex-col justify-between group hover:border-blue-100 transition-all">
             <div className="flex items-start justify-between">
-                <div className={`${color} w-14 h-14 rounded-3xl flex items-center justify-center text-white text-xl shadow-2xl shadow-slate-400/20 group-hover:scale-110 transition-transform duration-500`}>
+                <div className={`${color} w-11 h-11 sm:w-14 sm:h-14 rounded-[20px] sm:rounded-3xl flex items-center justify-center text-white text-lg sm:text-xl shadow-2xl shadow-slate-400/20 group-hover:scale-110 transition-transform duration-500`}>
                     {icon}
                 </div>
-                <div className={`flex items-center gap-1 ${positive ? 'text-emerald-500' : 'text-rose-500'} font-semibold text-xs`}>
+                <div className={`flex items-center gap-1 ${positive ? 'text-emerald-500' : 'text-rose-500'} font-semibold text-[10px] sm:text-xs`}>
                     {positive ? <BsArrowUpRight strokeWidth={1} /> : <BsArrowDownRight strokeWidth={1} />}
                     {trend}
                 </div>
             </div>
-            <div className="mt-8">
-                <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest">{title}</p>
-                <h2 className="text-3xl font-semibold text-slate-900 tracking-tight mt-1">{value}</h2>
+            <div className="mt-6 sm:mt-8">
+                <p className="text-[10px] sm:text-[11px] font-semibold text-slate-400 uppercase tracking-widest">{title}</p>
+                <h2 className="text-2xl sm:text-3xl font-semibold text-slate-900 tracking-tight mt-1">{value}</h2>
             </div>
         </div>
     );
