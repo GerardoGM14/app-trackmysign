@@ -9,7 +9,7 @@ export default function AdminDashboard() {
             <div className="flex items-center justify-between">
                 <div>
                     <h1 className="text-2xl font-black uppercase tracking-tight text-slate-900 leading-none">Tenant Administration</h1>
-                    <p className="text-slate-500 mt-2 font-medium">Managing company users, reports and configuration.</p>
+                    <p className="text-slate-500 mt-2 font-medium">Managing company users, reports and configuration .</p>
                 </div>
                 <div className="flex items-center gap-2 px-4 py-2 bg-indigo-50 border border-indigo-100 rounded-full">
                     <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest">Plan</span>
