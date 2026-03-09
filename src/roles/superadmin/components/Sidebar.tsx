@@ -1,3 +1,4 @@
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
     BsGrid1X2,
     BsBuilding,
@@ -17,6 +18,7 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ sidebarOpen, setSidebarOpen }: SidebarProps) {
+    const location = useLocation();
 
     return (
         <aside
@@ -74,23 +76,23 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }: SidebarProps) {
                 <div>
                     {sidebarOpen && <p className="px-4 text-sm font-semibold text-white/40 tracking-tight mb-2">Operations</p>}
                     <div className="space-y-1">
-                        <NavItem icon={<BsGrid1X2 />} label="Overview" active={true} sidebarOpen={sidebarOpen} />
-                        <NavItem icon={<BsBuilding />} label="Tenants" sidebarOpen={sidebarOpen} />
+                        <NavItem icon={<BsGrid1X2 />} label="Overview" path="/dashboard" currentPath={location.pathname} sidebarOpen={sidebarOpen} />
+                        <NavItem icon={<BsBuilding />} label="Tenants" path="/tenants" currentPath={location.pathname} sidebarOpen={sidebarOpen} />
                     </div>
                 </div>
 
                 <div>
                     {sidebarOpen && <p className="px-4 text-sm font-semibold text-white/40 tracking-tight mb-2">Business</p>}
                     <div className="space-y-1">
-                        <NavItem icon={<BsGraphUp />} label="Analytics" sidebarOpen={sidebarOpen} />
-                        <NavItem icon={<BsPersonVcard />} label="Users" sidebarOpen={sidebarOpen} />
+                        <NavItem icon={<BsGraphUp />} label="Analytics" path="/analytics" currentPath={location.pathname} sidebarOpen={sidebarOpen} />
+                        <NavItem icon={<BsPersonVcard />} label="Users" path="/users" currentPath={location.pathname} sidebarOpen={sidebarOpen} />
                     </div>
                 </div>
 
                 <div>
                     {sidebarOpen && <p className="px-4 text-sm font-semibold text-white/40 tracking-tight mb-2">Master Control</p>}
                     <div className="space-y-1">
-                        <NavItem icon={<BsShieldLock />} label="Settings" sidebarOpen={sidebarOpen} />
+                        <NavItem icon={<BsShieldLock />} label="Settings" path="/settings" currentPath={location.pathname} sidebarOpen={sidebarOpen} />
                     </div>
                 </div>
             </nav>
@@ -130,17 +132,23 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }: SidebarProps) {
 function NavItem({
     icon,
     label,
-    active = false,
+    path,
+    currentPath,
     sidebarOpen
 }: {
-    icon: any,
-    label: string,
-    active?: boolean,
-    sidebarOpen: boolean
+    icon: React.ReactNode;
+    label: string;
+    path: string;
+    currentPath: string;
+    sidebarOpen: boolean;
 }) {
+    const navigate = useNavigate();
+    const active = currentPath === path;
+
     return (
         <button
-            className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-[12.5px] font-semibold tracking-wide transition-all duration-200 group relative ${active
+            onClick={() => navigate(path)}
+            className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-[12.5px] font-semibold tracking-wide transition-all duration-200 group relative cursor-pointer ${active
                 ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/40'
                 : 'text-white/70 hover:bg-white/5 hover:text-white'
                 }`}

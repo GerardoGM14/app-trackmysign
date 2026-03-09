@@ -10,6 +10,10 @@ import LoaderTest from './pages/LoaderTest';
 
 // Pages
 import SuperAdminDashboard from './roles/superadmin/pages/Dashboard';
+import SuperAdminTenants from './roles/superadmin/pages/Tenants';
+import SuperAdminAnalytics from './roles/superadmin/pages/Analytics';
+import SuperAdminUsers from './roles/superadmin/pages/Users';
+import SuperAdminSettings from './roles/superadmin/pages/Settings';
 import AdminDashboard from './roles/admin/pages/Dashboard';
 import EmployeeDashboard from './roles/employee/pages/Dashboard';
 import ClientDashboard from './roles/client/pages/Dashboard';
@@ -56,6 +60,10 @@ function AppRoutes() {
       <SuperAdminLayout>
         <Routes>
           <Route path="/dashboard" element={<SuperAdminDashboard />} />
+          <Route path="/tenants" element={<SuperAdminTenants />} />
+          <Route path="/analytics" element={<SuperAdminAnalytics />} />
+          <Route path="/users" element={<SuperAdminUsers />} />
+          <Route path="/settings" element={<SuperAdminSettings />} />
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
