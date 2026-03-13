@@ -114,7 +114,7 @@ export default function Tenants() {
 
         // Define columns
         worksheet.columns = [
-            { header: 'ID', key: 'id', width: 12 },
+            { header: 'IDA', key: 'id', width: 12 },
             { header: 'Company', key: 'company', width: 25 },
             { header: 'Admin', key: 'admin', width: 20 },
             { header: 'Email', key: 'email', width: 30 },
@@ -520,8 +520,8 @@ export default function Tenants() {
                 </div>
             </div>
 
-            {/* Independent Pagination Bar */}
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden mt-6">
+            {/* Independent Pagination Bar - Fixed at viewport bottom */}
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-xl fixed bottom-6 left-6 right-6 sm:left-[280px] sm:right-8 z-50 transition-all duration-300">
                 <Pagination
                     currentPage={currentPage}
                     totalPages={totalPages}
