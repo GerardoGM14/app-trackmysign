@@ -2,4 +2,4 @@ Rol			    Correo Electrónico			    Contraseña
 Super Admin		superadmin@trackmysign.com		superadmin123
 Admin			admin@shop.com			        admin123
 Employee		employee@shop.com		        employee123
-Client			client@customer.com1		        client123
+Client			client@customer.com1		    client123.
