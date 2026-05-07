@@ -30,8 +30,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const [tenantId, setTenantId] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
 
-    // Dev Helper: Instant Role Switch
+    // Dev-only role switcher. No-op in production builds.
     const setMockRole = (newRole: UserRole) => {
+        if (!import.meta.env.DEV) {
+            console.warn('setMockRole is disabled in production builds.');
+            return;
+        }
         setLoading(true);
         if (newRole) {
             setUser({

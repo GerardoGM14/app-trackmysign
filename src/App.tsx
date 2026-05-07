@@ -1,4 +1,5 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
 import Login from './pages/Login';
@@ -6,6 +7,7 @@ import Register from './pages/Register';
 import Landing from './pages/Landing';
 import DashboardLayout from './layouts/DashboardLayout';
 import LoadingOverlay from './components/LoadingOverlay';
+import TopProgressBar from './components/TopProgressBar';
 import LoaderTest from './pages/LoaderTest';
 
 // Pages
@@ -20,6 +22,39 @@ import ClientDashboard from './roles/client/pages/Dashboard';
 
 import SuperAdminLayout from './roles/superadmin/layouts/SuperAdminLayout';
 
+const ROUTE_TRANSITION_MS = 1000;
+
+function PublicRoutes() {
+  const location = useLocation();
+  const [displayedLocation, setDisplayedLocation] = useState(location);
+  const [showProgress, setShowProgress] = useState(false);
+
+  useEffect(() => {
+    if (location.pathname === displayedLocation.pathname) return;
+
+    setShowProgress(true);
+    const timer = setTimeout(() => {
+      setDisplayedLocation(location);
+      setShowProgress(false);
+    }, ROUTE_TRANSITION_MS);
+
+    return () => clearTimeout(timer);
+  }, [location, displayedLocation.pathname]);
+
+  return (
+    <>
+      {showProgress && <TopProgressBar />}
+      <Routes location={displayedLocation}>
+        <Route path="/" element={<Landing />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="/loader-test" element={<LoaderTest />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </>
+  );
+}
+
 function AppRoutes() {
   const { user, role, loading } = useAuth();
 
@@ -28,15 +63,7 @@ function AppRoutes() {
   }
 
   if (!user) {
-    return (
-      <Routes>
-        <Route path="/" element={<Landing />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="/loader-test" element={<LoaderTest />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    );
+    return <PublicRoutes />;
   }
 
   // Dashboard component based on role

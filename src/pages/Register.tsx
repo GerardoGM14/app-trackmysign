@@ -1,46 +1,69 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Select, { components } from 'react-select';
 import countryList from 'react-select-country-list';
-import ReactCountryFlag from "react-country-flag";
+import ReactCountryFlag from 'react-country-flag';
 import { auth, googleProvider, db } from '../firebase';
-import { createUserWithEmailAndPassword, signInWithPopup } from 'firebase/auth';
+import { createUserWithEmailAndPassword, signInWithPopup, deleteUser } from 'firebase/auth';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { BsEye, BsEyeSlash, BsArrowLeft, BsLightningCharge, BsRocketTakeoff } from 'react-icons/bs';
-import { RiInformation2Fill } from "react-icons/ri";
-import { FaShieldCat } from "react-icons/fa6";
-import { FaCheckCircle } from "react-icons/fa";
-import { FcGoogle } from "react-icons/fc";
+import { BsEye, BsEyeSlash, BsArrowRight, BsArrowLeft, BsCheck2 } from 'react-icons/bs';
+import { FcGoogle } from 'react-icons/fc';
+import { AnimatePresence, motion } from 'motion/react';
+
 import logo from '../assets/Login/logo-trackmysign.png';
 import LoadingOverlay from '../components/LoadingOverlay';
-import { useToast } from '../context/ToastContext';
+import AuthCarousel from '../components/auth/AuthCarousel';
+import AuthFooter from '../components/auth/AuthFooter';
+import InfoModal from '../components/auth/InfoModal';
+import type { InfoKind } from '../components/auth/InfoModal';
+import { REGISTER_SLIDES } from '../components/auth/slides';
+import Field from '../components/auth/Field';
 
-const SLIDES = [
+import { useToast } from '../context/ToastContext';
+import { describeAuthError } from '../utils/firebaseErrors';
+import { validateEmail, validatePassword, validateRequired } from '../utils/validators';
+
+interface CountryOption {
+    label: string;
+    value: string;
+}
+
+const PLANS = [
     {
-        url: "https://images.unsplash.com/photo-1529400971008-f566de0e6dfc?auto=format&fit=crop&q=80&w=1000",
-        text: "Expand your global reach",
-        desc: "Connect your business to international markets with our multitenant network."
+        id: 'starter' as const,
+        name: 'Starter',
+        price: 'Gratis',
+        priceHint: 'para siempre',
+        description: 'Ideal para equipos pequeños que están empezando.',
+        features: ['Hasta 3 usuarios', '5 GB de almacenamiento', '7 días de historial', 'Roles predefinidos'],
     },
     {
-        url: "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&q=80&w=1000",
-        text: "Professional Onboarding",
-        desc: "Set up your organization's hierarchy and operational regions in minutes."
+        id: 'enterprise' as const,
+        name: 'Enterprise',
+        price: '$99',
+        priceHint: '/ mes',
+        description: 'Para organizaciones con operaciones complejas.',
+        features: [
+            'Hasta 30 usuarios',
+            '30 GB de almacenamiento',
+            'Historial ilimitado',
+            'Analítica avanzada',
+            'Roles personalizados',
+            'Acceso a la API',
+        ],
     },
-    {
-        url: "https://images.unsplash.com/photo-1497215728101-856f4ea42174?auto=format&fit=crop&q=80&w=1000",
-        text: "Enterprise Management",
-        desc: "Control every aspect of your fleet and personnel from a single dashboard."
-    },
-    {
-        url: "https://images.unsplash.com/photo-1542744173-8e7e53415bb0?auto=format&fit=crop&q=80&w=1000",
-        text: "Real-time Analytics",
-        desc: "Make data-driven decisions with insights from all your active territories."
-    }
 ];
+
+type PlanId = (typeof PLANS)[number]['id'];
+type Step = 'form' | 'plan';
+type RegisterMode = 'email' | 'google';
+type FormErrors = Partial<Record<'fullName' | 'email' | 'company' | 'country' | 'password', string>>;
 
 export default function Register() {
     const navigate = useNavigate();
-    const options = useMemo(() => countryList().getData(), []);
+    const { showToast } = useToast();
+    const countryOptions = useMemo(() => countryList().getData() as CountryOption[], []);
+
     const [fullName, setFullName] = useState('');
     const [email, setEmail] = useState('');
     const [company, setCompany] = useState('');
@@ -49,520 +72,545 @@ export default function Register() {
     const [city, setCity] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
-    const { showToast } = useToast();
+
+    const [step, setStep] = useState<Step>('form');
+    const [registerMode, setRegisterMode] = useState<RegisterMode>('email');
+    const [selectedPlan, setSelectedPlan] = useState<PlanId>('starter');
+
     const [loading, setLoading] = useState(false);
-    const [currentSlide, setCurrentSlide] = useState(0);
-    const [registerMode, setRegisterMode] = useState<'email' | 'google'>('email');
-    const [showPricing, setShowPricing] = useState(false);
-    const [selectedPlan, setSelectedPlan] = useState<'starter' | 'enterprise' | null>(null);
+    const [errors, setErrors] = useState<FormErrors>({});
+    const [infoModal, setInfoModal] = useState<InfoKind | null>(null);
 
-    useEffect(() => {
-        const timer = setInterval(() => {
-            setCurrentSlide((prev) => (prev + 1) % SLIDES.length);
-        }, 5000);
-        return () => clearInterval(timer);
-    }, []);
+    const validate = (mode: RegisterMode): boolean => {
+        const next: FormErrors = {};
+        next.fullName = validateRequired(fullName, 'Tu nombre', 2);
+        next.email = validateEmail(email);
+        next.company = validateRequired(company, 'El nombre de la empresa');
+        if (!country) next.country = 'Selecciona un país.';
+        if (mode === 'email') next.password = validatePassword(password);
 
-    const handleRegister = async (e: React.FormEvent) => {
+        const filtered: FormErrors = Object.fromEntries(
+            Object.entries(next).filter(([, v]) => v),
+        ) as FormErrors;
+        setErrors(filtered);
+        return Object.keys(filtered).length === 0;
+    };
+
+    const clearFieldError = (field: keyof FormErrors) => {
+        if (errors[field]) setErrors((prev) => ({ ...prev, [field]: undefined }));
+    };
+
+    const handleSubmitForm = (e: React.SyntheticEvent) => {
         e.preventDefault();
+        setRegisterMode('email');
+        if (!validate('email')) return;
+        setStep('plan');
+    };
 
-        if (!email.includes('@')) {
-            showToast('Please enter a valid email address.', 'error');
-            return;
-        }
-
-        // Instead of immediate register, show pricing
-        setShowPricing(true);
+    const handleGoogleClick = () => {
+        setRegisterMode('google');
+        setPassword('');
+        if (!validate('google')) return;
+        setStep('plan');
     };
 
     const completeRegistration = async () => {
-        if (!selectedPlan) return;
-
         setLoading(true);
+        let createdUserId: string | null = null;
+
         try {
             let user;
             if (registerMode === 'email') {
-                const cred = await createUserWithEmailAndPassword(auth, email, password);
+                const cred = await createUserWithEmailAndPassword(
+                    auth,
+                    email.trim().toLowerCase(),
+                    password,
+                );
                 user = cred.user;
             } else {
                 const cred = await signInWithPopup(auth, googleProvider);
                 user = cred.user;
             }
+            createdUserId = user.uid;
 
-            // Save extended profile to Firestore
             await setDoc(doc(db, 'users', user.uid), {
-                fullName,
+                fullName: fullName.trim(),
                 email: user.email,
-                company,
+                company: company.trim(),
                 country,
-                region,
-                city,
+                region: region.trim(),
+                city: city.trim(),
                 planId: selectedPlan,
-                role: 'admin', // User who registers is usually the admin of their tenant
+                role: 'admin',
                 createdAt: serverTimestamp(),
-                status: 'active'
+                status: 'active',
             });
 
-            showToast('Account created successfully!', 'success');
+            showToast('Cuenta creada correctamente.', 'success');
             navigate('/dashboard');
-        } catch (err: any) {
-            showToast(err.message || 'Registration failed.', 'error');
+        } catch (err) {
+            // Avoid leaving an orphan auth user when Firestore write fails
+            if (createdUserId && auth.currentUser && auth.currentUser.uid === createdUserId) {
+                try {
+                    await deleteUser(auth.currentUser);
+                } catch (cleanupErr) {
+                    console.error('Failed to delete orphan auth user:', cleanupErr);
+                }
+            }
+
+            showToast(describeAuthError(err, 'No fue posible crear la cuenta.'), 'error');
             console.error(err);
-            setShowPricing(false);
+            setStep('form');
         } finally {
             setLoading(false);
         }
     };
 
-    const handleGoogleRegister = async () => {
-        // Show pricing first to let user choose a plan
-        setShowPricing(true);
-    };
-
     return (
-        <div className="min-h-screen w-full flex items-center justify-center bg-slate-50 font-sans p-4 md:p-8">
+        <div className="min-h-screen w-full bg-slate-50 text-slate-900 flex">
             {loading && <LoadingOverlay />}
-            <div className="w-full max-w-7xl flex flex-col lg:flex-row gap-6 items-stretch">
 
-                {/* Left Side: Blurred Image Carousel - Mirroring Login */}
-                <div className="hidden lg:flex flex-1 relative overflow-hidden bg-slate-900 items-center justify-center rounded-2xl border border-slate-200 p-8 shadow-sm min-h-[700px]">
-                    {SLIDES.map((slide, index) => (
-                        <div
-                            key={index}
-                            className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${index === currentSlide ? 'opacity-100' : 'opacity-0'}`}
-                        >
-                            <img
-                                src={slide.url}
-                                alt="Slide"
-                                className="w-full h-full object-cover blur-[1px] opacity-40"
-                            />
-                            <div className="absolute inset-0 flex items-end justify-start p-12">
-                                <div className="max-w-xs transition-all duration-500 transform translate-y-0 text-left">
-                                    <h2 className="text-3xl font-bold text-white leading-tight tracking-tight drop-shadow-md mb-3">
-                                        {slide.text}
-                                    </h2>
-                                    <p className="text-base font-normal text-white/80 leading-relaxed drop-shadow-sm">
-                                        {slide.desc}
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                    ))}
+            <aside className="hidden lg:block lg:w-[44%] xl:w-[48%] relative overflow-hidden bg-slate-950 order-2">
+                <AuthCarousel slides={REGISTER_SLIDES} />
+            </aside>
 
-                    {/* Slide indicators */}
-                    <div className="absolute bottom-8 left-12 flex gap-1.5 z-10">
-                        {SLIDES.map((_, i) => (
-                            <div
-                                key={i}
-                                className={`h-1 rounded-full transition-all duration-300 ${i === currentSlide ? 'w-8 bg-white' : 'w-2 bg-white/40'}`}
-                            />
-                        ))}
-                    </div>
-                </div>
-
-                {/* Right Side: Register Form - Expanded with more fields */}
-                <div className="w-full lg:w-[540px] bg-white border border-slate-200 rounded-2xl p-8 md:p-10 flex flex-col shadow-sm overflow-y-auto max-h-[90vh] lg:max-h-none">
-                    <div className="flex flex-col mb-6">
-                        <div className="h-24 w-auto flex items-center justify-center lg:justify-start mb-4">
-                            <img src={logo} alt="TrackSign Logo" className="h-full w-auto object-contain" />
-                        </div>
-                        <h1 className="text-2xl font-bold text-slate-900 leading-none">Register</h1>
-                        <p className="text-slate-700 text-sm mt-1">
-                            Create your account to start managing your global operation with TrackMySign.
-                        </p>
-                    </div>
-
-                    <form onSubmit={handleRegister} className="space-y-4">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label className="block text-sm font-semibold text-slate-700 mb-1.5">Full Name</label>
-                                <input
-                                    type="text"
-                                    value={fullName}
-                                    onChange={(e) => setFullName(e.target.value)}
-                                    className="w-full bg-slate-50 border border-slate-200 px-4 py-3 rounded outline-none focus:border-blue-600 focus:bg-white transition-all text-sm"
-                                    placeholder="e.g. John Doe"
-                                    required
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-semibold text-slate-700 mb-1.5">Company Name</label>
-                                <input
-                                    type="text"
-                                    value={company}
-                                    onChange={(e) => setCompany(e.target.value)}
-                                    className="w-full bg-slate-50 border border-slate-200 px-4 py-3 rounded outline-none focus:border-blue-600 focus:bg-white transition-all text-sm"
-                                    placeholder="e.g. Global Tech Inc."
-                                    required
-                                />
-                            </div>
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-semibold text-slate-700 mb-1.5">Email Address</label>
-                            <input
-                                type="email"
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                                className="w-full bg-slate-50 border border-slate-200 px-4 py-3 rounded outline-none focus:border-blue-600 focus:bg-white transition-all text-sm"
-                                placeholder="name@company.com"
-                                required
-                            />
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div className="relative">
-                                <label className="block text-sm font-semibold text-slate-700 mb-1.5">Country</label>
-                                <Select
-                                    options={options}
-                                    value={options.find((opt: any) => opt.label === country)}
-                                    onChange={(opt: any) => setCountry(opt?.label || '')}
-                                    placeholder="Select..."
-                                    className="text-sm"
-                                    maxMenuHeight={200}
-                                    components={{
-                                        Option: (props) => (
-                                            <components.Option {...props}>
-                                                <div className="flex items-center gap-2">
-                                                    <ReactCountryFlag
-                                                        countryCode={props.data.value}
-                                                        svg
-                                                        style={{
-                                                            width: '20px',
-                                                            height: '15px'
-                                                        }}
-                                                    />
-                                                    {props.data.label}
-                                                </div>
-                                            </components.Option>
-                                        ),
-                                        SingleValue: (props) => (
-                                            <components.SingleValue {...props}>
-                                                <div className="flex items-center gap-2">
-                                                    <ReactCountryFlag
-                                                        countryCode={props.data.value}
-                                                        svg
-                                                        style={{
-                                                            width: '20px',
-                                                            height: '15px'
-                                                        }}
-                                                    />
-                                                    {props.data.label}
-                                                </div>
-                                            </components.SingleValue>
-                                        )
-                                    }}
-                                    styles={{
-                                        control: (base, state) => ({
-                                            ...base,
-                                            backgroundColor: '#f8fafc',
-                                            borderColor: state.isFocused ? '#2563eb' : '#e2e8f0',
-                                            borderRadius: '0.25rem',
-                                            minHeight: '48px',
-                                            boxShadow: 'none',
-                                            '&:hover': {
-                                                borderColor: state.isFocused ? '#2563eb' : '#cbd5e1'
-                                            }
-                                        }),
-                                        valueContainer: (base) => ({
-                                            ...base,
-                                            padding: '0 16px'
-                                        }),
-                                        placeholder: (base) => ({
-                                            ...base,
-                                            color: '#94a3b8'
-                                        }),
-                                        menu: (base) => ({
-                                            ...base,
-                                            borderRadius: '0.5rem',
-                                            marginTop: '4px',
-                                            boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)',
-                                            border: '1px border-slate-200'
-                                        }),
-                                        menuList: (base) => ({
-                                            ...base,
-                                            padding: '4px'
-                                        }),
-                                        option: (base, state) => ({
-                                            ...base,
-                                            borderRadius: '0.25rem',
-                                            backgroundColor: state.isSelected ? '#2563eb' : state.isFocused ? '#f1f5f9' : 'transparent',
-                                            color: state.isSelected ? 'white' : '#1e293b',
-                                            cursor: 'pointer',
-                                            '&:active': {
-                                                backgroundColor: '#2563eb'
-                                            }
-                                        })
-                                    }}
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-semibold text-slate-700 mb-1.5">Region</label>
-                                <input
-                                    type="text"
-                                    value={region}
-                                    onChange={(e) => setRegion(e.target.value)}
-                                    className="w-full bg-slate-50 border border-slate-200 px-4 py-3 rounded outline-none focus:border-blue-600 focus:bg-white transition-all text-sm"
-                                    placeholder="e.g. Lima"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-semibold text-slate-700 mb-1.5">City</label>
-                                <input
-                                    type="text"
-                                    value={city}
-                                    onChange={(e) => setCity(e.target.value)}
-                                    className="w-full bg-slate-50 border border-slate-200 px-4 py-3 rounded outline-none focus:border-blue-600 focus:bg-white transition-all text-sm"
-                                    placeholder="e.g. Miraflores"
-                                />
-                            </div>
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-semibold text-slate-700 mb-1.5">Password</label>
-                            <div className="relative">
-                                <input
-                                    type={showPassword ? "text" : "password"}
-                                    value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
-                                    className="w-full bg-white border border-slate-200 px-4 py-2.5 rounded outline-none focus:border-blue-600 transition-all text-sm pr-12"
-                                    placeholder="Create a strong password"
-                                    required
-                                />
-                                <button
-                                    type="button"
-                                    onClick={() => setShowPassword(!showPassword)}
-                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-blue-600 transition-colors p-1 cursor-pointer"
-                                >
-                                    {showPassword ? <BsEyeSlash size={18} /> : <BsEye size={18} />}
-                                </button>
-                            </div>
-                        </div>
-
-
-                        <div className="flex gap-3 items-center w-full pt-4">
-                            <button
-                                type={registerMode === 'email' ? 'submit' : 'button'}
-                                onClick={(e) => {
-                                    if (registerMode !== 'email') {
-                                        e.preventDefault();
-                                        setRegisterMode('email');
-                                    }
-                                }}
-                                disabled={loading}
-                                style={{
-                                    flexGrow: registerMode === 'email' ? 1 : 0,
-                                    flexBasis: '56px',
-                                    flexShrink: 0
-                                }}
-                                className={`h-14 rounded-xl font-bold text-sm transition-all duration-500 ease-in-out cursor-pointer flex items-center justify-center overflow-hidden whitespace-nowrap active:scale-[0.98] ${registerMode === 'email'
-                                    ? 'bg-blue-600 text-white px-6'
-                                    : 'bg-white border border-slate-200 text-blue-600 px-0'
-                                    }`}
-                            >
-                                {loading && registerMode === 'email' ? (
-                                    <div className="w-4 h-4" />
-                                ) : (
-                                    <div className={`flex items-center justify-center transition-all duration-500 ${registerMode === 'email' ? 'gap-3' : 'gap-0'}`}>
-                                        <div className={`rounded-lg p-0.5 flex items-center justify-center transition-colors duration-500 flex-shrink-0 ${registerMode === 'email' ? 'bg-white' : 'bg-blue-50'}`}>
-                                            <FaShieldCat className="text-blue-600 text-[14px]" />
-                                        </div>
-                                        <span className={`transition-all duration-500 overflow-hidden ${registerMode === 'email' ? 'opacity-100 max-w-[200px]' : 'opacity-0 max-w-0'}`}>
-                                            Register Now
-                                        </span>
-                                    </div>
-                                )}
-                            </button>
-
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    if (registerMode === 'google') {
-                                        handleGoogleRegister();
-                                    } else {
-                                        setRegisterMode('google');
-                                    }
-                                }}
-                                disabled={loading}
-                                style={{
-                                    flexGrow: registerMode === 'google' ? 1 : 0,
-                                    flexBasis: '56px',
-                                    flexShrink: 0
-                                }}
-                                className={`h-14 rounded-xl text-sm transition-all duration-500 ease-in-out cursor-pointer flex items-center justify-center overflow-hidden whitespace-nowrap active:scale-[0.98] ${registerMode === 'google'
-                                    ? 'bg-white border border-slate-200 text-slate-700 px-6 font-medium'
-                                    : 'bg-white border border-slate-200 px-0 font-bold'
-                                    }`}
-                                title="Sign up with Google"
-                            >
-                                {loading && registerMode === 'google' ? (
-                                    <div className="w-4 h-4" />
-                                ) : (
-                                    <div className={`flex items-center justify-center transition-all duration-500 ${registerMode === 'google' ? 'gap-3' : 'gap-0'}`}>
-                                        <FcGoogle size={24} className="flex-shrink-0" />
-                                        <span className={`transition-all duration-500 overflow-hidden ${registerMode === 'google' ? 'opacity-100 max-w-[200px]' : 'opacity-0 max-w-0'}`}>
-                                            Sign up with Google
-                                        </span>
-                                    </div>
-                                )}
-                            </button>
-                        </div>
-                    </form>
-
-                    <div className="mt-8 flex flex-col items-center">
+            <main className="flex-1 flex flex-col bg-slate-50 order-1">
+                <header className="h-16 px-6 lg:px-12 flex items-center justify-between">
+                    <img src={logo} alt="TrackMySign" className="h-7 w-auto lg:hidden select-none" draggable={false} />
+                    <div className="flex-1" />
+                    <div className="flex items-center gap-3 text-sm">
+                        <span className="text-slate-500 hidden sm:inline">¿Ya tienes cuenta?</span>
                         <button
                             onClick={() => navigate('/login')}
-                            className="flex items-center gap-2 text-slate-500 hover:text-blue-600 transition-colors font-medium text-sm group"
+                            className="text-[#1e40af] font-medium hover:text-[#1e3a8a] transition-colors cursor-pointer"
                         >
-                            <BsArrowLeft className="group-hover:-translate-x-1 transition-transform" />
-                            Already have an account? Login
+                            Iniciar sesión →
                         </button>
                     </div>
-                </div>
-            </div>
+                </header>
 
-            {/* Pricing Modal */}
-            {showPricing && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/90 animate-in fade-in duration-300">
-                    <div className="bg-white w-full max-w-4xl max-h-[90vh] rounded-3xl overflow-hidden shadow-2xl border border-slate-200 animate-in zoom-in-95 duration-300 flex flex-col relative px-4 pt-8 md:px-0 md:pt-0">
-                        <div className="flex flex-col items-center mb-8 md:hidden text-center">
-                            <h2 className="text-2xl font-black text-slate-900 tracking-tight">Choose your plan</h2>
-                            <p className="text-slate-500 text-xs font-medium">Select the best option for your operational needs.</p>
-                        </div>
-                        <div className="flex flex-col md:flex-row flex-1 overflow-y-auto pb-48 sm:pb-32 md:pb-24">
-                            {/* Starter Plan */}
-                            <div className={`flex-1 p-8 md:p-12 transition-all duration-300 flex flex-col items-center text-center border-b md:border-b-0 md:border-r border-slate-100 ${selectedPlan === 'starter' ? 'bg-blue-50/50 ring-2 ring-blue-600 ring-inset' : 'hover:bg-slate-50'}`}>
-                                <div className="w-16 h-16 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600 mb-6">
-                                    <BsLightningCharge size={32} />
-                                </div>
-                                <h3 className="text-xl font-bold text-slate-900 mb-2">Starter</h3>
-                                <p className="text-slate-500 text-sm mb-6 max-w-[280px]">Perfect for small teams and startups starting their tracking journey. Get all the essentials to manage your logistics with precision and ease, ensuring a smooth takeoff for your operations.</p>
-                                <div className="text-4xl font-extrabold text-slate-900 mb-8">$0<span className="text-sm font-medium text-slate-400">/mo</span></div>
-
-                                <ul className="space-y-4 mb-10 text-left w-full text-sm font-medium text-slate-600">
-                                    <li className="flex items-center gap-3">
-                                        <FaCheckCircle className="text-green-500 text-lg flex-shrink-0" />
-                                        Up to 3 Active Users
-                                    </li>
-                                    <li className="flex items-center gap-3">
-                                        <FaCheckCircle className="text-green-500 text-lg flex-shrink-0" />
-                                        Standard Document Tracking
-                                    </li>
-                                    <li className="flex items-center gap-3">
-                                        <FaCheckCircle className="text-green-500 text-lg flex-shrink-0" />
-                                        Basic Logistics Metrics
-                                    </li>
-                                    <li className="flex items-center gap-3">
-                                        <FaCheckCircle className="text-green-500 text-lg flex-shrink-0" />
-                                        4 Pre-defined Roles
-                                    </li>
-                                    <li className="flex items-center gap-3">
-                                        <FaCheckCircle className="text-green-500 text-lg flex-shrink-0" />
-                                        5GB Cloud Storage (Firebase)
-                                    </li>
-                                    <li className="flex items-center gap-3">
-                                        <FaCheckCircle className="text-green-500 text-lg flex-shrink-0" />
-                                        7-Day History Access
-                                    </li>
-                                    <li className="flex items-center gap-3 text-slate-300">
-                                        <FaCheckCircle className="text-slate-200 text-lg flex-shrink-0" />
-                                        Priority Core Support
-                                    </li>
-                                </ul>
-
-                                <button
-                                    onClick={() => setSelectedPlan('starter')}
-                                    className={`w-full py-4 rounded-xl font-bold transition-all active:scale-[0.98] ${selectedPlan === 'starter' ? 'bg-blue-600 text-white shadow-lg' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                <div className="flex-1 flex items-center justify-center px-6 py-8">
+                    <div className="w-full max-w-[520px] bg-white border border-slate-200 rounded-xl p-8 sm:p-10">
+                        <AnimatePresence mode="wait">
+                            {step === 'form' ? (
+                                <motion.div
+                                    key="form"
+                                    initial={{ opacity: 0, x: -8 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    exit={{ opacity: 0, x: -8 }}
+                                    transition={{ duration: 0.2, ease: 'easeOut' }}
                                 >
-                                    {selectedPlan === 'starter' ? 'Plan Selected' : 'Choose Starter'}
-                                </button>
-                            </div>
-
-                            {/* Enterprise Plan */}
-                            <div className={`flex-1 p-8 md:p-12 transition-all duration-300 flex flex-col items-center text-center relative ${selectedPlan === 'enterprise' ? 'bg-blue-50/50 ring-2 ring-blue-600 ring-inset' : 'hover:bg-slate-50'}`}>
-                                <div className="absolute top-6 right-6 bg-blue-600 text-white text-[10px] font-bold px-3 py-1 rounded-full tracking-wide shadow-lg animate-pulse z-10 font-sans">Most Popular</div>
-                                <div className="w-16 h-16 min-w-[64px] min-h-[64px] bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600 mb-6">
-                                    <BsRocketTakeoff size={32} />
-                                </div>
-                                <h3 className="text-xl font-bold text-slate-900 mb-2">Enterprise</h3>
-                                <p className="text-slate-500 text-sm mb-6 max-w-[280px]">Unlimited power for global organizations and complex fleets. Scale your business with advanced analytics, custom integrations, and dedicated support designed for high-performance enterprise management.</p>
-                                <div className="text-4xl font-extrabold text-slate-900 mb-8">$99<span className="text-sm font-medium text-slate-400">/mo</span></div>
-
-                                <ul className="space-y-4 mb-10 text-left w-full text-sm font-medium text-slate-600">
-                                    <li className="flex items-center gap-3">
-                                        <FaCheckCircle className="text-green-500 text-lg flex-shrink-0" />
-                                        Up to 30 Active Users
-                                    </li>
-                                    <li className="flex items-center gap-3">
-                                        <FaCheckCircle className="text-green-500 text-lg flex-shrink-0" />
-                                        Bulk Document Management
-                                    </li>
-                                    <li className="flex items-center gap-3">
-                                        <FaCheckCircle className="text-green-500 text-lg flex-shrink-0" />
-                                        Advanced Analytics & Exports
-                                    </li>
-                                    <li className="flex items-center gap-3">
-                                        <FaCheckCircle className="text-green-500 text-lg flex-shrink-0" />
-                                        Custom Role Management
-                                    </li>
-                                    <li className="flex items-center gap-3">
-                                        <FaCheckCircle className="text-green-500 text-lg flex-shrink-0" />
-                                        30GB Cloud Storage (Firebase)
-                                    </li>
-                                    <li className="flex items-center gap-3">
-                                        <FaCheckCircle className="text-green-500 text-lg flex-shrink-0" />
-                                        Full History Log (Unlimited)
-                                    </li>
-                                    <li className="flex items-center gap-3">
-                                        <FaCheckCircle className="text-green-500 text-lg flex-shrink-0" />
-                                        API Access (Beta)
-                                    </li>
-                                    <li className="flex items-center gap-3 text-slate-600">
-                                        <FaCheckCircle className="text-green-500 text-lg flex-shrink-0" />
-                                        Personalized Support (24h Response)
-                                    </li>
-                                </ul>
-
-                                <button
-                                    onClick={() => setSelectedPlan('enterprise')}
-                                    className={`w-full py-4 rounded-xl font-bold transition-all active:scale-[0.98] ${selectedPlan === 'enterprise' ? 'bg-blue-600 text-white shadow-lg' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                                    <FormStep
+                                        fullName={fullName}
+                                        email={email}
+                                        company={company}
+                                        country={country}
+                                        region={region}
+                                        city={city}
+                                        password={password}
+                                        showPassword={showPassword}
+                                        errors={errors}
+                                        loading={loading}
+                                        countryOptions={countryOptions}
+                                        onFullNameChange={(v) => { setFullName(v); clearFieldError('fullName'); }}
+                                        onEmailChange={(v) => { setEmail(v); clearFieldError('email'); }}
+                                        onCompanyChange={(v) => { setCompany(v); clearFieldError('company'); }}
+                                        onCountryChange={(v) => { setCountry(v); clearFieldError('country'); }}
+                                        onRegionChange={setRegion}
+                                        onCityChange={setCity}
+                                        onPasswordChange={(v) => { setPassword(v); clearFieldError('password'); }}
+                                        onTogglePassword={() => setShowPassword((s) => !s)}
+                                        onSubmit={handleSubmitForm}
+                                        onGoogleClick={handleGoogleClick}
+                                        onOpenTerms={() => setInfoModal('terms')}
+                                        onOpenPrivacy={() => setInfoModal('privacy')}
+                                    />
+                                </motion.div>
+                            ) : (
+                                <motion.div
+                                    key="plan"
+                                    initial={{ opacity: 0, x: 8 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    exit={{ opacity: 0, x: 8 }}
+                                    transition={{ duration: 0.2, ease: 'easeOut' }}
                                 >
-                                    {selectedPlan === 'enterprise' ? 'Plan Selected' : 'Choose Enterprise'}
-                                </button>
-                            </div>
-                        </div>
-
-                        {/* Flexible Plan Info Bar (Cookie style from reference image) */}
-                        <div className="absolute bottom-0 left-0 right-0 bg-white p-3 md:p-4 flex flex-col md:flex-row items-center gap-4 md:gap-0 z-20">
-                            <div className="flex flex-1 items-center gap-4 text-left">
-                                <div className="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 flex-shrink-0">
-                                    <RiInformation2Fill size={24} />
-                                </div>
-                                <div>
-                                    <h4 className="text-sm font-bold text-slate-900 leading-tight">Plan Flexibility</h4>
-                                    <p className="text-xs text-slate-500 leading-normal">You can change your plan later in settings. At any time.</p>
-                                </div>
-                            </div>
-
-                            <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto mt-2 md:mt-0">
-                                <button
-                                    onClick={() => setShowPricing(false)}
-                                    className="px-8 py-2.5 bg-slate-50 text-slate-600 font-bold text-sm rounded-full hover:bg-slate-100 transition-all active:scale-95 border border-slate-200 w-full sm:w-auto"
-                                >
-                                    Rechazar
-                                </button>
-                                <button
-                                    disabled={!selectedPlan || loading}
-                                    onClick={completeRegistration}
-                                    className={`px-10 py-2.5 text-white rounded-full font-bold text-sm transition-all active:scale-95 shadow-lg shadow-blue-100 disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto ${selectedPlan ? 'bg-blue-600 hover:bg-blue-700' : 'bg-slate-300'}`}
-                                >
-                                    {loading ? 'Processing...' : 'Aceptar todo'}
-                                </button>
-                            </div>
-                        </div>
+                                    <PlanStep
+                                        selectedPlan={selectedPlan}
+                                        loading={loading}
+                                        onBack={() => setStep('form')}
+                                        onSelect={setSelectedPlan}
+                                        onConfirm={completeRegistration}
+                                    />
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
                     </div>
                 </div>
-            )}
+
+                <AuthFooter
+                    onOpenStatus={() => setInfoModal('status')}
+                    onOpenDocs={() => setInfoModal('docs')}
+                />
+            </main>
+
+            <AnimatePresence>
+                {infoModal && <InfoModal kind={infoModal} onClose={() => setInfoModal(null)} />}
+            </AnimatePresence>
+        </div>
+    );
+}
+
+/* ---------- Form step ---------- */
+
+interface FormStepProps {
+    fullName: string;
+    email: string;
+    company: string;
+    country: string;
+    region: string;
+    city: string;
+    password: string;
+    showPassword: boolean;
+    errors: FormErrors;
+    loading: boolean;
+    countryOptions: CountryOption[];
+    onFullNameChange: (v: string) => void;
+    onEmailChange: (v: string) => void;
+    onCompanyChange: (v: string) => void;
+    onCountryChange: (v: string) => void;
+    onRegionChange: (v: string) => void;
+    onCityChange: (v: string) => void;
+    onPasswordChange: (v: string) => void;
+    onTogglePassword: () => void;
+    onSubmit: (e: React.SyntheticEvent) => void;
+    onGoogleClick: () => void;
+    onOpenTerms: () => void;
+    onOpenPrivacy: () => void;
+}
+
+function FormStep(props: FormStepProps) {
+    const {
+        fullName, email, company, country, region, city, password, showPassword,
+        errors, loading, countryOptions,
+        onFullNameChange, onEmailChange, onCompanyChange, onCountryChange,
+        onRegionChange, onCityChange, onPasswordChange, onTogglePassword,
+        onSubmit, onGoogleClick, onOpenTerms, onOpenPrivacy,
+    } = props;
+
+    return (
+        <>
+            <div className="mb-7">
+                <img
+                    src={logo}
+                    alt="TrackMySign"
+                    className="h-14 w-auto mb-6 select-none"
+                    draggable={false}
+                />
+                <h2 className="text-[28px] font-semibold tracking-[-0.02em] text-slate-900 leading-tight">
+                    Crea tu cuenta
+                </h2>
+                <p className="text-sm text-slate-500 mt-2 leading-relaxed">
+                    Configura el espacio de trabajo de tu organización.
+                </p>
+            </div>
+
+            <form onSubmit={onSubmit} className="space-y-4" noValidate>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <Field
+                        id="fullName"
+                        label="Nombre completo"
+                        placeholder="Ej. Ana Pérez"
+                        value={fullName}
+                        onChange={onFullNameChange}
+                        error={errors.fullName}
+                        autoComplete="name"
+                    />
+                    <Field
+                        id="company"
+                        label="Empresa"
+                        placeholder="Ej. Triga S.A."
+                        value={company}
+                        onChange={onCompanyChange}
+                        error={errors.company}
+                        autoComplete="organization"
+                    />
+                </div>
+
+                <Field
+                    id="email"
+                    label="Correo electrónico"
+                    type="email"
+                    placeholder="nombre@empresa.com"
+                    value={email}
+                    onChange={onEmailChange}
+                    error={errors.email}
+                    autoComplete="email"
+                />
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <CountrySelect
+                        options={countryOptions}
+                        value={country}
+                        onChange={onCountryChange}
+                        error={errors.country}
+                    />
+                    <Field id="region" label="Región" placeholder="Lima" value={region} onChange={onRegionChange} optional />
+                    <Field id="city" label="Ciudad" placeholder="Miraflores" value={city} onChange={onCityChange} optional />
+                </div>
+
+                <div>
+                    <label htmlFor="password" className="block text-[13px] font-medium text-slate-700 mb-1.5">
+                        Contraseña
+                    </label>
+                    <div className="relative">
+                        <input
+                            id="password"
+                            type={showPassword ? 'text' : 'password'}
+                            value={password}
+                            onChange={(e) => onPasswordChange(e.target.value)}
+                            placeholder="Mínimo 6 caracteres"
+                            autoComplete="new-password"
+                            aria-invalid={!!errors.password}
+                            aria-describedby={errors.password ? 'password-error' : undefined}
+                            className={`w-full h-10 pl-3 pr-10 bg-white border rounded-md text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:ring-2 transition-all ${errors.password
+                                    ? 'border-rose-400 focus:border-rose-500 focus:ring-rose-500/15'
+                                    : 'border-slate-200 focus:border-[#1e40af] focus:ring-[#1e40af]/15'
+                                }`}
+                        />
+                        <button
+                            type="button"
+                            onClick={onTogglePassword}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-slate-400 hover:text-slate-700 cursor-pointer transition-colors"
+                            aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                        >
+                            {showPassword ? <BsEyeSlash size={15} /> : <BsEye size={15} />}
+                        </button>
+                    </div>
+                    {errors.password && (
+                        <p id="password-error" className="text-[12px] text-rose-600 mt-1.5">
+                            {errors.password}
+                        </p>
+                    )}
+                </div>
+
+                <button
+                    type="submit"
+                    disabled={loading}
+                    className="group w-full h-10 bg-slate-950 text-white text-sm font-medium rounded-md hover:bg-slate-800 active:bg-slate-900 transition-colors disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2 mt-2"
+                >
+                    Continuar
+                    <BsArrowRight size={14} className="group-hover:translate-x-0.5 transition-transform" />
+                </button>
+            </form>
+
+            <div className="flex items-center gap-3 my-6">
+                <div className="flex-1 h-px bg-slate-200" />
+                <span className="text-[11px] text-slate-400 font-medium uppercase tracking-wider">
+                    o regístrate con
+                </span>
+                <div className="flex-1 h-px bg-slate-200" />
+            </div>
+
+            <button
+                type="button"
+                onClick={onGoogleClick}
+                disabled={loading}
+                className="w-full h-10 bg-white border border-slate-200 text-slate-700 text-sm font-medium rounded-md hover:bg-slate-50 hover:border-slate-300 transition-colors disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2.5"
+            >
+                <FcGoogle size={18} />
+                Continuar con Google
+            </button>
+
+            <p className="text-[11px] text-slate-400 text-center mt-7 leading-relaxed">
+                Al continuar aceptas los{' '}
+                <button
+                    type="button"
+                    onClick={onOpenTerms}
+                    className="text-slate-600 hover:text-slate-900 underline underline-offset-2 cursor-pointer"
+                >
+                    Términos
+                </button>
+                {' '}y la{' '}
+                <button
+                    type="button"
+                    onClick={onOpenPrivacy}
+                    className="text-slate-600 hover:text-slate-900 underline underline-offset-2 cursor-pointer"
+                >
+                    Política de privacidad
+                </button>
+                .
+            </p>
+        </>
+    );
+}
+
+/* ---------- Plan step ---------- */
+
+interface PlanStepProps {
+    selectedPlan: PlanId;
+    loading: boolean;
+    onBack: () => void;
+    onSelect: (plan: PlanId) => void;
+    onConfirm: () => void;
+}
+
+function PlanStep({ selectedPlan, loading, onBack, onSelect, onConfirm }: PlanStepProps) {
+    return (
+        <>
+            <button
+                type="button"
+                onClick={onBack}
+                className="text-[12px] text-slate-500 hover:text-slate-900 font-medium flex items-center gap-1.5 mb-5 cursor-pointer transition-colors"
+            >
+                <BsArrowLeft size={12} /> Volver
+            </button>
+
+            <h2 className="text-[24px] font-semibold tracking-[-0.02em] text-slate-900 leading-tight">
+                Elige tu plan
+            </h2>
+            <p className="text-sm text-slate-500 mt-1.5 leading-relaxed mb-6">
+                Puedes cambiarlo en cualquier momento desde la configuración.
+            </p>
+
+            <div className="space-y-3">
+                {PLANS.map((plan) => {
+                    const selected = selectedPlan === plan.id;
+                    return (
+                        <button
+                            key={plan.id}
+                            type="button"
+                            onClick={() => onSelect(plan.id)}
+                            aria-pressed={selected}
+                            className={`w-full text-left border rounded-md p-4 transition-all cursor-pointer ${selected
+                                    ? 'border-[#1e40af] bg-[#1e40af]/[0.03] ring-2 ring-[#1e40af]/15'
+                                    : 'border-slate-200 bg-white hover:border-slate-300'
+                                }`}
+                        >
+                            <div className="flex items-start justify-between gap-3 mb-2">
+                                <div>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-[15px] font-semibold text-slate-900">{plan.name}</span>
+                                        {selected && (
+                                            <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-[#1e40af] text-white">
+                                                <BsCheck2 size={11} />
+                                            </span>
+                                        )}
+                                    </div>
+                                    <p className="text-[12px] text-slate-500 mt-0.5">{plan.description}</p>
+                                </div>
+                                <div className="text-right shrink-0">
+                                    <span className="text-[18px] font-semibold text-slate-900 tracking-tight">
+                                        {plan.price}
+                                    </span>
+                                    <span className="text-[11px] text-slate-400 ml-0.5">{plan.priceHint}</span>
+                                </div>
+                            </div>
+                            <ul className="grid grid-cols-2 gap-x-3 gap-y-1.5 mt-3 pt-3 border-t border-slate-100">
+                                {plan.features.map((f) => (
+                                    <li key={f} className="flex items-center gap-1.5 text-[12px] text-slate-600">
+                                        <BsCheck2 size={12} className="text-[#1e40af] flex-shrink-0" />
+                                        {f}
+                                    </li>
+                                ))}
+                            </ul>
+                        </button>
+                    );
+                })}
+            </div>
+
+            <button
+                type="button"
+                onClick={onConfirm}
+                disabled={loading}
+                className="group w-full h-10 bg-slate-950 text-white text-sm font-medium rounded-md hover:bg-slate-800 active:bg-slate-900 transition-colors disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2 mt-6"
+            >
+                {loading ? 'Creando cuenta...' : 'Crear cuenta'}
+                {!loading && <BsArrowRight size={14} className="group-hover:translate-x-0.5 transition-transform" />}
+            </button>
+        </>
+    );
+}
+
+/* ---------- Country select (encapsulated styling) ---------- */
+
+interface CountrySelectProps {
+    options: CountryOption[];
+    value: string;
+    onChange: (label: string) => void;
+    error?: string;
+}
+
+function CountrySelect({ options, value, onChange, error }: CountrySelectProps) {
+    const selected = options.find((opt) => opt.label === value) ?? null;
+
+    return (
+        <div>
+            <label className="block text-[13px] font-medium text-slate-700 mb-1.5">País</label>
+            <Select<CountryOption>
+                options={options}
+                value={selected}
+                onChange={(opt) => onChange(opt?.label ?? '')}
+                placeholder="Selecciona..."
+                classNamePrefix="rs"
+                components={{
+                    Option: (props) => (
+                        <components.Option {...props}>
+                            <div className="flex items-center gap-2">
+                                <ReactCountryFlag countryCode={props.data.value} svg style={{ width: '18px', height: '13px' }} />
+                                <span className="text-[13px]">{props.data.label}</span>
+                            </div>
+                        </components.Option>
+                    ),
+                    SingleValue: (props) => (
+                        <components.SingleValue {...props}>
+                            <div className="flex items-center gap-2">
+                                <ReactCountryFlag countryCode={props.data.value} svg style={{ width: '18px', height: '13px' }} />
+                                <span className="text-[13px]">{props.data.label}</span>
+                            </div>
+                        </components.SingleValue>
+                    ),
+                }}
+                styles={{
+                    control: (base, state) => ({
+                        ...base,
+                        minHeight: '40px',
+                        backgroundColor: 'white',
+                        borderColor: error
+                            ? '#fb7185'
+                            : state.isFocused
+                                ? '#1e40af'
+                                : '#e2e8f0',
+                        borderRadius: '6px',
+                        boxShadow: state.isFocused
+                            ? error
+                                ? '0 0 0 2px rgba(244,63,94,0.15)'
+                                : '0 0 0 2px rgba(30,64,175,0.15)'
+                            : 'none',
+                        '&:hover': { borderColor: state.isFocused ? '#1e40af' : '#cbd5e1' },
+                    }),
+                    valueContainer: (base) => ({ ...base, padding: '0 10px' }),
+                    placeholder: (base) => ({ ...base, color: '#94a3b8', fontSize: '14px' }),
+                    menu: (base) => ({
+                        ...base,
+                        borderRadius: '6px',
+                        border: '1px solid #e2e8f0',
+                        boxShadow: '0 4px 12px rgba(15,23,42,0.06)',
+                        marginTop: '4px',
+                    }),
+                    option: (base, state) => ({
+                        ...base,
+                        backgroundColor: state.isSelected
+                            ? '#1e40af'
+                            : state.isFocused
+                                ? '#f1f5f9'
+                                : 'transparent',
+                        color: state.isSelected ? 'white' : '#1e293b',
+                        cursor: 'pointer',
+                        padding: '8px 10px',
+                    }),
+                }}
+            />
+            {error && <p className="text-[12px] text-rose-600 mt-1.5">{error}</p>}
         </div>
     );
 }
