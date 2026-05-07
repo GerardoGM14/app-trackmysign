@@ -20,6 +20,8 @@ import { REGISTER_SLIDES } from '../components/auth/slides';
 import Field from '../components/auth/Field';
 
 import { useToast } from '../context/ToastContext';
+import { usePlans } from '../context/PlansContext';
+import type { PlanConfig } from '../config/plans';
 import { describeAuthError } from '../utils/firebaseErrors';
 import { validateEmail, validatePassword, validateRequired } from '../utils/validators';
 
@@ -28,33 +30,7 @@ interface CountryOption {
     value: string;
 }
 
-const PLANS = [
-    {
-        id: 'starter' as const,
-        name: 'Starter',
-        price: 'Gratis',
-        priceHint: 'para siempre',
-        description: 'Ideal para equipos pequeños que están empezando.',
-        features: ['Hasta 3 usuarios', '5 GB de almacenamiento', '7 días de historial', 'Roles predefinidos'],
-    },
-    {
-        id: 'enterprise' as const,
-        name: 'Enterprise',
-        price: '$99',
-        priceHint: '/ mes',
-        description: 'Para organizaciones con operaciones complejas.',
-        features: [
-            'Hasta 30 usuarios',
-            '30 GB de almacenamiento',
-            'Historial ilimitado',
-            'Analítica avanzada',
-            'Roles personalizados',
-            'Acceso a la API',
-        ],
-    },
-];
-
-type PlanId = (typeof PLANS)[number]['id'];
+type PlanId = string;
 type Step = 'form' | 'plan';
 type RegisterMode = 'email' | 'google';
 type FormErrors = Partial<Record<'fullName' | 'email' | 'company' | 'country' | 'password', string>>;
@@ -62,7 +38,10 @@ type FormErrors = Partial<Record<'fullName' | 'email' | 'company' | 'country' | 
 export default function Register() {
     const navigate = useNavigate();
     const { showToast } = useToast();
+    const { plans } = usePlans();
     const countryOptions = useMemo(() => countryList().getData() as CountryOption[], []);
+
+    const defaultPlanId = plans[0]?.id ?? 'starter';
 
     const [fullName, setFullName] = useState('');
     const [email, setEmail] = useState('');
@@ -75,7 +54,7 @@ export default function Register() {
 
     const [step, setStep] = useState<Step>('form');
     const [registerMode, setRegisterMode] = useState<RegisterMode>('email');
-    const [selectedPlan, setSelectedPlan] = useState<PlanId>('starter');
+    const [selectedPlan, setSelectedPlan] = useState<PlanId>(defaultPlanId);
 
     const [loading, setLoading] = useState(false);
     const [errors, setErrors] = useState<FormErrors>({});
@@ -235,6 +214,7 @@ export default function Register() {
                                     transition={{ duration: 0.2, ease: 'easeOut' }}
                                 >
                                     <PlanStep
+                                        plans={plans}
                                         selectedPlan={selectedPlan}
                                         loading={loading}
                                         onBack={() => setStep('form')}
@@ -447,6 +427,7 @@ function FormStep(props: FormStepProps) {
 /* ---------- Plan step ---------- */
 
 interface PlanStepProps {
+    plans: PlanConfig[];
     selectedPlan: PlanId;
     loading: boolean;
     onBack: () => void;
@@ -454,7 +435,7 @@ interface PlanStepProps {
     onConfirm: () => void;
 }
 
-function PlanStep({ selectedPlan, loading, onBack, onSelect, onConfirm }: PlanStepProps) {
+function PlanStep({ plans, selectedPlan, loading, onBack, onSelect, onConfirm }: PlanStepProps) {
     return (
         <>
             <button
@@ -473,8 +454,11 @@ function PlanStep({ selectedPlan, loading, onBack, onSelect, onConfirm }: PlanSt
             </p>
 
             <div className="space-y-3">
-                {PLANS.map((plan) => {
+                {plans.map((plan) => {
                     const selected = selectedPlan === plan.id;
+                    const priceLabel = plan.price === 0 ? 'Gratis' : `€${plan.price}`;
+                    const priceHint = plan.price === 0 ? 'para siempre' : '/ mes';
+
                     return (
                         <button
                             key={plan.id}
@@ -488,8 +472,13 @@ function PlanStep({ selectedPlan, loading, onBack, onSelect, onConfirm }: PlanSt
                         >
                             <div className="flex items-start justify-between gap-3 mb-2">
                                 <div>
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-2 flex-wrap">
                                         <span className="text-[15px] font-semibold text-slate-900">{plan.name}</span>
+                                        {plan.highlighted && (
+                                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-[#1e40af]/10 text-[#1e40af] border border-[#1e40af]/15">
+                                                Recomendado
+                                            </span>
+                                        )}
                                         {selected && (
                                             <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-[#1e40af] text-white">
                                                 <BsCheck2 size={11} />
@@ -500,19 +489,21 @@ function PlanStep({ selectedPlan, loading, onBack, onSelect, onConfirm }: PlanSt
                                 </div>
                                 <div className="text-right shrink-0">
                                     <span className="text-[18px] font-semibold text-slate-900 tracking-tight">
-                                        {plan.price}
+                                        {priceLabel}
                                     </span>
-                                    <span className="text-[11px] text-slate-400 ml-0.5">{plan.priceHint}</span>
+                                    <span className="text-[11px] text-slate-400 ml-0.5">{priceHint}</span>
                                 </div>
                             </div>
-                            <ul className="grid grid-cols-2 gap-x-3 gap-y-1.5 mt-3 pt-3 border-t border-slate-100">
-                                {plan.features.map((f) => (
-                                    <li key={f} className="flex items-center gap-1.5 text-[12px] text-slate-600">
-                                        <BsCheck2 size={12} className="text-[#1e40af] flex-shrink-0" />
-                                        {f}
-                                    </li>
-                                ))}
-                            </ul>
+                            {plan.displayedFeatures.length > 0 && (
+                                <ul className="grid grid-cols-2 gap-x-3 gap-y-1.5 mt-3 pt-3 border-t border-slate-100">
+                                    {plan.displayedFeatures.map((f) => (
+                                        <li key={f} className="flex items-center gap-1.5 text-[12px] text-slate-600">
+                                            <BsCheck2 size={12} className="text-[#1e40af] flex-shrink-0" />
+                                            {f}
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
                         </button>
                     );
                 })}
