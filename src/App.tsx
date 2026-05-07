@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
+import { PlansProvider } from './context/PlansContext';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Landing from './pages/Landing';
@@ -9,8 +9,8 @@ import DashboardLayout from './layouts/DashboardLayout';
 import LoadingOverlay from './components/LoadingOverlay';
 import TopProgressBar from './components/TopProgressBar';
 import LoaderTest from './pages/LoaderTest';
+import { useRouteTransition } from './hooks/useRouteTransition';
 
-// Pages
 import SuperAdminDashboard from './roles/superadmin/pages/Dashboard';
 import SuperAdminTenants from './roles/superadmin/pages/Tenants';
 import SuperAdminAnalytics from './roles/superadmin/pages/Analytics';
@@ -22,24 +22,11 @@ import ClientDashboard from './roles/client/pages/Dashboard';
 
 import SuperAdminLayout from './roles/superadmin/layouts/SuperAdminLayout';
 
-const ROUTE_TRANSITION_MS = 1000;
+const PUBLIC_TRANSITION_MS = 1000;
+const PRIVATE_TRANSITION_MS = 500;
 
 function PublicRoutes() {
-  const location = useLocation();
-  const [displayedLocation, setDisplayedLocation] = useState(location);
-  const [showProgress, setShowProgress] = useState(false);
-
-  useEffect(() => {
-    if (location.pathname === displayedLocation.pathname) return;
-
-    setShowProgress(true);
-    const timer = setTimeout(() => {
-      setDisplayedLocation(location);
-      setShowProgress(false);
-    }, ROUTE_TRANSITION_MS);
-
-    return () => clearTimeout(timer);
-  }, [location, displayedLocation.pathname]);
+  const { displayedLocation, showProgress } = useRouteTransition(PUBLIC_TRANSITION_MS);
 
   return (
     <>
@@ -55,53 +42,48 @@ function PublicRoutes() {
   );
 }
 
-function AppRoutes() {
-  const { user, role, loading } = useAuth();
+function SuperAdminRoutes() {
+  const { displayedLocation, showProgress } = useRouteTransition(PRIVATE_TRANSITION_MS);
 
-  if (loading) {
-    return <LoadingOverlay />;
-  }
+  return (
+    <SuperAdminLayout>
+      {showProgress && <TopProgressBar />}
+      <Routes location={displayedLocation}>
+        <Route path="/dashboard" element={<SuperAdminDashboard />} />
+        <Route path="/tenants" element={<SuperAdminTenants />} />
+        <Route path="/analytics" element={<SuperAdminAnalytics />} />
+        <Route path="/users" element={<SuperAdminUsers />} />
+        <Route path="/settings" element={<SuperAdminSettings />} />
+        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      </Routes>
+    </SuperAdminLayout>
+  );
+}
 
-  if (!user) {
-    return <PublicRoutes />;
-  }
+function RoleDashboardRoutes() {
+  const { role } = useAuth();
+  const { displayedLocation, showProgress } = useRouteTransition(PRIVATE_TRANSITION_MS);
 
-  // Dashboard component based on role
-  const getDashboardContent = () => {
+  const dashboard = (() => {
     switch (role) {
-      case 'superadmin': return <SuperAdminDashboard />;
       case 'admin': return <AdminDashboard />;
       case 'employee': return <EmployeeDashboard />;
       case 'client': return <ClientDashboard />;
-      default: return (
-        <div className="p-8 text-center text-slate-500 font-bold uppercase text-xs">
-          Warning: No role assigned. Contact System Admin.
-        </div>
-      );
+      default:
+        return (
+          <div className="p-8 text-center text-slate-500 text-sm">
+            No tienes un rol asignado. Contacta al administrador del sistema.
+          </div>
+        );
     }
-  };
-
-  // Wrapper based on role for separate layouts
-  if (role === 'superadmin') {
-    return (
-      <SuperAdminLayout>
-        <Routes>
-          <Route path="/dashboard" element={<SuperAdminDashboard />} />
-          <Route path="/tenants" element={<SuperAdminTenants />} />
-          <Route path="/analytics" element={<SuperAdminAnalytics />} />
-          <Route path="/users" element={<SuperAdminUsers />} />
-          <Route path="/settings" element={<SuperAdminSettings />} />
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
-        </Routes>
-      </SuperAdminLayout>
-    );
-  }
+  })();
 
   return (
     <DashboardLayout>
-      <Routes>
-        <Route path="/dashboard" element={getDashboardContent()} />
+      {showProgress && <TopProgressBar />}
+      <Routes location={displayedLocation}>
+        <Route path="/dashboard" element={dashboard} />
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
@@ -109,13 +91,24 @@ function AppRoutes() {
   );
 }
 
+function AppRoutes() {
+  const { user, role, loading } = useAuth();
+
+  if (loading) return <LoadingOverlay />;
+  if (!user) return <PublicRoutes />;
+  if (role === 'superadmin') return <SuperAdminRoutes />;
+  return <RoleDashboardRoutes />;
+}
+
 function App() {
   return (
     <Router>
       <AuthProvider>
-        <ToastProvider>
-          <AppRoutes />
-        </ToastProvider>
+        <PlansProvider>
+          <ToastProvider>
+            <AppRoutes />
+          </ToastProvider>
+        </PlansProvider>
       </AuthProvider>
     </Router>
   );

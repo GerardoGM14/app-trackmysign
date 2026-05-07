@@ -2,13 +2,14 @@ import { useEffect } from 'react';
 import { motion } from 'motion/react';
 import { BsX } from 'react-icons/bs';
 
-export type InfoKind = 'status' | 'docs' | 'terms' | 'privacy';
+export type InfoKind = 'status' | 'docs' | 'terms' | 'privacy' | 'help';
 
 const TITLES: Record<InfoKind, string> = {
     status: 'Estado del servicio',
     docs: 'Acerca de TrackMySign',
     terms: 'Términos del servicio',
     privacy: 'Política de privacidad',
+    help: 'Centro de ayuda',
 };
 
 const SERVICES = [
@@ -76,6 +77,7 @@ export default function InfoModal({ kind, onClose }: InfoModalProps) {
                     {kind === 'docs' && <DocsBody />}
                     {kind === 'terms' && <TermsBody />}
                     {kind === 'privacy' && <PrivacyBody />}
+                    {kind === 'help' && <HelpBody />}
                 </div>
             </motion.div>
         </motion.div>
@@ -211,6 +213,71 @@ function PrivacyBody() {
                 en cualquier momento a través del administrador de tu organización.
             </LegalSection>
             <LastUpdated />
+        </div>
+    );
+}
+
+function HelpBody() {
+    const topics = [
+        { title: 'Primeros pasos', desc: 'Configura tu organización y crea tu primer equipo.' },
+        { title: 'Gestión de tenants', desc: 'Aprende a crear, suspender y administrar organizaciones cliente.' },
+        { title: 'Roles y permisos', desc: 'Asigna responsabilidades y controla el acceso a las funciones.' },
+        { title: 'Facturación y planes', desc: 'Consulta el estado de tus suscripciones y métodos de pago.' },
+    ];
+
+    return (
+        <div className="space-y-5">
+            <p className="text-[13px] text-slate-600 leading-relaxed">
+                Encuentra respuestas rápidas a las preguntas más frecuentes o
+                contacta directamente al equipo de soporte.
+            </p>
+
+            <section>
+                <h4 className="text-[12px] font-semibold text-slate-900 uppercase tracking-wider mb-2.5">
+                    Temas frecuentes
+                </h4>
+                <ul className="bg-slate-50 border border-slate-200 rounded-md overflow-hidden divide-y divide-slate-200">
+                    {topics.map((topic) => (
+                        <li key={topic.title}>
+                            <button
+                                type="button"
+                                className="w-full text-left px-3 py-2.5 hover:bg-white transition-colors cursor-pointer"
+                            >
+                                <p className="text-[13px] font-semibold text-slate-900 leading-snug">{topic.title}</p>
+                                <p className="text-[12px] text-slate-500 mt-0.5 leading-snug">{topic.desc}</p>
+                            </button>
+                        </li>
+                    ))}
+                </ul>
+            </section>
+
+            <section>
+                <h4 className="text-[12px] font-semibold text-slate-900 uppercase tracking-wider mb-2.5">
+                    Contacto directo
+                </h4>
+                <div className="grid grid-cols-2 gap-2">
+                    <a
+                        href="mailto:soporte@trackmysign.com"
+                        className="border border-slate-200 rounded-md p-3 hover:border-slate-300 transition-colors text-left"
+                    >
+                        <p className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Correo</p>
+                        <p className="text-[13px] font-medium text-slate-900 mt-0.5 break-all">
+                            soporte@trackmysign.com
+                        </p>
+                    </a>
+                    <a
+                        href="tel:+5114000000"
+                        className="border border-slate-200 rounded-md p-3 hover:border-slate-300 transition-colors text-left"
+                    >
+                        <p className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Teléfono</p>
+                        <p className="text-[13px] font-medium text-slate-900 mt-0.5">+51 (1) 400-0000</p>
+                    </a>
+                </div>
+            </section>
+
+            <p className="text-[11px] text-slate-400 pt-3 border-t border-slate-100">
+                Tiempo promedio de respuesta: menos de 4 horas en días hábiles.
+            </p>
         </div>
     );
 }
