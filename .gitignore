@@ -26,3 +26,6 @@ dist-ssr
 # Claude Code memory
 MEMORY.md
 memory/
+
+# Project context docs (not part of source)
+PROJECT_OVERVIEW.md
