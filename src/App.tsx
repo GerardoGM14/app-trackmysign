@@ -17,10 +17,24 @@ import SuperAdminAnalytics from './roles/superadmin/pages/Analytics';
 import SuperAdminUsers from './roles/superadmin/pages/Users';
 import SuperAdminSettings from './roles/superadmin/pages/Settings';
 import AdminDashboard from './roles/admin/pages/Dashboard';
+import AdminDocuments from './roles/admin/pages/Documents';
+import AdminQuotes from './roles/admin/pages/Quotes';
+import AdminOrders from './roles/admin/pages/Orders';
+import AdminEmployees from './roles/admin/pages/Employees';
+import AdminReports from './roles/admin/pages/Reports';
+import AdminSettings from './roles/admin/pages/Settings';
 import EmployeeDashboard from './roles/employee/pages/Dashboard';
+import EmployeeInbox from './roles/employee/pages/Inbox';
+import EmployeeQuotes from './roles/employee/pages/Quotes';
+import EmployeeOrders from './roles/employee/pages/Orders';
+import EmployeeMyDocuments from './roles/employee/pages/MyDocuments';
+import EmployeeActivity from './roles/employee/pages/Activity';
+import EmployeeAccount from './roles/employee/pages/Account';
 import ClientDashboard from './roles/client/pages/Dashboard';
 
 import SuperAdminLayout from './roles/superadmin/layouts/SuperAdminLayout';
+import AdminLayout from './roles/admin/layouts/AdminLayout';
+import EmployeeLayout from './roles/employee/layouts/EmployeeLayout';
 
 const PUBLIC_TRANSITION_MS = 1000;
 const PRIVATE_TRANSITION_MS = 500;
@@ -61,14 +75,54 @@ function SuperAdminRoutes() {
   );
 }
 
+function AdminRoutes() {
+  const { displayedLocation, showProgress } = useRouteTransition(PRIVATE_TRANSITION_MS);
+
+  return (
+    <AdminLayout>
+      {showProgress && <TopProgressBar />}
+      <Routes location={displayedLocation}>
+        <Route path="/dashboard" element={<AdminDashboard />} />
+        <Route path="/quotes" element={<AdminQuotes />} />
+        <Route path="/orders" element={<AdminOrders />} />
+        <Route path="/documents" element={<AdminDocuments />} />
+        <Route path="/employees" element={<AdminEmployees />} />
+        <Route path="/reports" element={<AdminReports />} />
+        <Route path="/settings" element={<AdminSettings />} />
+        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      </Routes>
+    </AdminLayout>
+  );
+}
+
+function EmployeeRoutes() {
+  const { displayedLocation, showProgress } = useRouteTransition(PRIVATE_TRANSITION_MS);
+
+  return (
+    <EmployeeLayout>
+      {showProgress && <TopProgressBar />}
+      <Routes location={displayedLocation}>
+        <Route path="/dashboard" element={<EmployeeDashboard />} />
+        <Route path="/inbox" element={<EmployeeInbox />} />
+        <Route path="/quotes" element={<EmployeeQuotes />} />
+        <Route path="/orders" element={<EmployeeOrders />} />
+        <Route path="/my-documents" element={<EmployeeMyDocuments />} />
+        <Route path="/activity" element={<EmployeeActivity />} />
+        <Route path="/account" element={<EmployeeAccount />} />
+        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      </Routes>
+    </EmployeeLayout>
+  );
+}
+
 function RoleDashboardRoutes() {
   const { role } = useAuth();
   const { displayedLocation, showProgress } = useRouteTransition(PRIVATE_TRANSITION_MS);
 
   const dashboard = (() => {
     switch (role) {
-      case 'admin': return <AdminDashboard />;
-      case 'employee': return <EmployeeDashboard />;
       case 'client': return <ClientDashboard />;
       default:
         return (
@@ -97,6 +151,8 @@ function AppRoutes() {
   if (loading) return <LoadingOverlay />;
   if (!user) return <PublicRoutes />;
   if (role === 'superadmin') return <SuperAdminRoutes />;
+  if (role === 'admin') return <AdminRoutes />;
+  if (role === 'employee') return <EmployeeRoutes />;
   return <RoleDashboardRoutes />;
 }
 
