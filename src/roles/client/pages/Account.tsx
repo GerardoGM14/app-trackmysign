@@ -18,7 +18,7 @@ import { useCustomerData } from '../../../features/customer/CustomerDataContext'
 import { formatPrice } from '../../../features/quotes/pricing';
 
 export default function CustomerAccount() {
-    const { user, setMockRole } = useAuth();
+    const { user, logout } = useAuth();
     const { showToast } = useToast();
     const navigate = useNavigate();
     const { orders, quotes } = useCustomerData();
@@ -63,8 +63,8 @@ export default function CustomerAccount() {
         showToast('Preferencia actualizada.', 'info');
     };
 
-    const handleSignOut = () => {
-        setMockRole(null);
+    const handleSignOut = async () => {
+        await logout();
         navigate('/login', { replace: true });
     };
 

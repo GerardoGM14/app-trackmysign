@@ -92,7 +92,7 @@ const DEFAULT_NOTIFICATIONS: NotificationsData = {
 
 export default function Account() {
     const { showToast } = useToast();
-    const { user, setMockRole } = useAuth();
+    const { user, logout } = useAuth();
     const navigate = useNavigate();
 
     const [activeTab, setActiveTab] = useState<Tab>('profile');
@@ -268,7 +268,7 @@ export default function Account() {
     /* ---------- Logout ---------- */
 
     const performLogout = () => {
-        setMockRole(null);
+        await logout();
         navigate('/login', { replace: true });
     };
 

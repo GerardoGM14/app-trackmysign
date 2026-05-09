@@ -63,7 +63,7 @@ const INITIAL_NOTIFICATIONS: NotificationItem[] = [
 ];
 
 export default function Navbar({ sidebarOpen, setSidebarOpen }: NavbarProps) {
-    const { user, setMockRole } = useAuth();
+    const { user, logout } = useAuth();
     const { showToast } = useToast();
     const location = useLocation();
     const navigate = useNavigate();
@@ -171,9 +171,9 @@ export default function Navbar({ sidebarOpen, setSidebarOpen }: NavbarProps) {
         setSignOutConfirm(true);
     };
 
-    const confirmSignOut = () => {
+    const confirmSignOut = async () => {
         setSignOutConfirm(false);
-        setMockRole(null);
+        await logout();
         navigate('/login', { replace: true });
     };
 

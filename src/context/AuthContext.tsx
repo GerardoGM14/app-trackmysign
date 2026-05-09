@@ -1,5 +1,5 @@
 import { auth, db } from '../firebase';
-import { onAuthStateChanged, type User } from 'firebase/auth';
+import { onAuthStateChanged, signOut, type User } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 
@@ -12,6 +12,7 @@ interface AuthContextType {
     tenantId: string | null;
     loading: boolean;
     setMockRole: (role: UserRole) => void;
+    logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -21,6 +22,7 @@ const AuthContext = createContext<AuthContextType>({
     tenantId: null,
     loading: true,
     setMockRole: () => { },
+    logout: async () => { },
 });
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
@@ -84,8 +86,24 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         return unsubscribe;
     }, []);
 
+    const logout = async () => {
+        // Cierra la sesión real de Firebase (si la hay) y limpia cualquier rol mock activo.
+        // El listener onAuthStateChanged terminará de limpiar el estado.
+        try {
+            if (auth.currentUser) {
+                await signOut(auth);
+            }
+        } catch (err) {
+            console.error('Error al cerrar sesión en Firebase', err);
+        }
+        setUser(null);
+        setRole(null);
+        setPlanId(null);
+        setTenantId(null);
+    };
+
     return (
-        <AuthContext.Provider value={{ user, role, planId, tenantId, loading, setMockRole }}>
+        <AuthContext.Provider value={{ user, role, planId, tenantId, loading, setMockRole, logout }}>
             {children}
         </AuthContext.Provider>
     );

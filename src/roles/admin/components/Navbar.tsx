@@ -172,9 +172,9 @@ export default function Navbar({ sidebarOpen, setSidebarOpen }: NavbarProps) {
         setSignOutConfirm(true);
     };
 
-    const confirmSignOut = () => {
+    const confirmSignOut = async () => {
         setSignOutConfirm(false);
-        setMockRole(null);
+        await logout();
         navigate('/login', { replace: true });
     };
 
