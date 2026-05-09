@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
 import { PlansProvider } from './context/PlansContext';
+import { CustomerDataProvider } from './features/customer/CustomerDataContext';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Landing from './pages/Landing';
@@ -31,10 +32,15 @@ import EmployeeMyDocuments from './roles/employee/pages/MyDocuments';
 import EmployeeActivity from './roles/employee/pages/Activity';
 import EmployeeAccount from './roles/employee/pages/Account';
 import ClientDashboard from './roles/client/pages/Dashboard';
+import ClientQuotes from './roles/client/pages/Quotes';
+import ClientOrders from './roles/client/pages/Orders';
+import ClientProofs from './roles/client/pages/Proofs';
+import ClientAccount from './roles/client/pages/Account';
 
 import SuperAdminLayout from './roles/superadmin/layouts/SuperAdminLayout';
 import AdminLayout from './roles/admin/layouts/AdminLayout';
 import EmployeeLayout from './roles/employee/layouts/EmployeeLayout';
+import ClientLayout from './roles/client/layouts/CustomerLayout';
 
 const PUBLIC_TRANSITION_MS = 1000;
 const PRIVATE_TRANSITION_MS = 500;
@@ -117,29 +123,41 @@ function EmployeeRoutes() {
   );
 }
 
-function RoleDashboardRoutes() {
-  const { role } = useAuth();
+function ClientRoutes() {
   const { displayedLocation, showProgress } = useRouteTransition(PRIVATE_TRANSITION_MS);
 
-  const dashboard = (() => {
-    switch (role) {
-      case 'client': return <ClientDashboard />;
-      default:
-        return (
-          <div className="p-8 text-center text-slate-500 text-sm">
-            No tienes un rol asignado. Contacta al administrador del sistema.
-          </div>
-        );
-    }
-  })();
+  return (
+    <CustomerDataProvider>
+      <ClientLayout>
+        {showProgress && <TopProgressBar />}
+        <Routes location={displayedLocation}>
+          <Route path="/dashboard" element={<ClientDashboard />} />
+          <Route path="/quotes" element={<ClientQuotes />} />
+          <Route path="/orders" element={<ClientOrders />} />
+          <Route path="/proofs" element={<ClientProofs />} />
+          <Route path="/account" element={<ClientAccount />} />
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        </Routes>
+      </ClientLayout>
+    </CustomerDataProvider>
+  );
+}
 
+function FallbackRoutes() {
+  const { displayedLocation, showProgress } = useRouteTransition(PRIVATE_TRANSITION_MS);
   return (
     <DashboardLayout>
       {showProgress && <TopProgressBar />}
       <Routes location={displayedLocation}>
-        <Route path="/dashboard" element={dashboard} />
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        <Route
+          path="*"
+          element={
+            <div className="p-8 text-center text-slate-500 text-sm">
+              No tienes un rol asignado. Contacta al administrador del sistema.
+            </div>
+          }
+        />
       </Routes>
     </DashboardLayout>
   );
@@ -153,7 +171,8 @@ function AppRoutes() {
   if (role === 'superadmin') return <SuperAdminRoutes />;
   if (role === 'admin') return <AdminRoutes />;
   if (role === 'employee') return <EmployeeRoutes />;
-  return <RoleDashboardRoutes />;
+  if (role === 'client') return <ClientRoutes />;
+  return <FallbackRoutes />;
 }
 
 function App() {
