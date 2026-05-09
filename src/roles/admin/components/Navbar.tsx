@@ -65,7 +65,7 @@ const INITIAL_NOTIFICATIONS: NotificationItem[] = [
 ];
 
 export default function Navbar({ sidebarOpen, setSidebarOpen }: NavbarProps) {
-    const { user, setMockRole } = useAuth();
+    const { user, logout } = useAuth();
     const { showToast } = useToast();
     const location = useLocation();
     const navigate = useNavigate();

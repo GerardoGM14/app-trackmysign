@@ -267,7 +267,7 @@ export default function Account() {
 
     /* ---------- Logout ---------- */
 
-    const performLogout = () => {
+    const performLogout = async () => {
         await logout();
         navigate('/login', { replace: true });
     };
