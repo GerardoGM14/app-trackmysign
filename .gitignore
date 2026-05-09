@@ -12,6 +12,11 @@ dist
 dist-ssr
 *.local
 
+# Environment variables (Firebase config, API keys, etc.)
+.env
+.env.*
+!.env.example
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
@@ -29,3 +34,10 @@ memory/
 
 # Project context docs (not part of source)
 PROJECT_OVERVIEW.md
+
+# Firebase deploy cache
+.firebase/
+*-debug.log
+
+# Mock credentials reference (local only)
+usuariosmock.txt

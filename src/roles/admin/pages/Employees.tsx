@@ -8,7 +8,6 @@ import {
     BsCheck2,
     BsChevronDown,
     BsChevronUp,
-    BsPlus,
     BsDownload,
     BsThreeDots,
     BsPencil,

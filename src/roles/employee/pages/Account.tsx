@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { AnimatePresence, motion } from 'motion/react';
+import { AnimatePresence } from 'motion/react';
 import {
     BsCheck2,
     BsPersonCircle,
