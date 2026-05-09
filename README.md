@@ -124,4 +124,6 @@ src/
 
 ## Licencia
 
-Proyecto propietario. Todos los derechos reservados.
+Copyright (c) 2026 Gerardo Gonzalez. Todos los derechos reservados.
+
+Software propietario. La copia, modificación, distribución o uso del código está prohibida sin autorización previa por escrito del propietario. Ver [LICENSE](LICENSE) para los términos completos.
