@@ -11,6 +11,10 @@ import {
     BsEnvelope,
     BsTelephone,
     BsBoxArrowUpRight,
+    BsSend,
+    BsImage,
+    BsCheckCircle,
+    BsHourglassSplit,
 } from 'react-icons/bs';
 import {
     type Order,
@@ -33,6 +37,7 @@ interface OrderDetailDrawerProps {
     onSaveNotes: (notes: string) => void;
     onCancel: (reason: string) => void;
     onDownload: () => void;
+    onSendProof: () => void;
 }
 
 export default function OrderDetailDrawer({
@@ -45,6 +50,7 @@ export default function OrderDetailDrawer({
     onSaveNotes,
     onCancel,
     onDownload,
+    onSendProof,
 }: OrderDetailDrawerProps) {
     const [notes, setNotes] = useState(order.productionNotes ?? '');
     const [cancelMode, setCancelMode] = useState(false);
@@ -246,6 +252,66 @@ export default function OrderDetailDrawer({
                         </ul>
                     </div>
 
+                    {/* Proofs */}
+                    <div className="px-6 py-4 border-b border-slate-100">
+                        <div className="flex items-center justify-between mb-3">
+                            <h5 className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider inline-flex items-center gap-1.5">
+                                <BsImage size={11} />
+                                Pruebas enviadas ({order.proofs.length})
+                            </h5>
+                            {canEdit && (
+                                <button
+                                    type="button"
+                                    onClick={onSendProof}
+                                    className="h-7 px-2.5 bg-[#1e40af] text-white text-[11.5px] font-medium rounded hover:bg-[#1e3a8a] transition-colors cursor-pointer flex items-center gap-1.5"
+                                >
+                                    <BsSend size={10} />
+                                    Enviar prueba
+                                </button>
+                            )}
+                        </div>
+                        {order.proofs.length === 0 ? (
+                            <p className="text-[12px] text-slate-400 italic">
+                                Aún no se han enviado pruebas al cliente.
+                            </p>
+                        ) : (
+                            <ul className="space-y-2">
+                                {[...order.proofs].reverse().map((proof) => (
+                                    <li key={proof.id} className="border border-slate-200 rounded-md overflow-hidden bg-slate-50/40">
+                                        <div className="flex gap-3 p-2.5">
+                                            <img
+                                                src={proof.imageUrl}
+                                                alt="Prueba"
+                                                className="w-16 h-16 object-cover rounded border border-slate-200 shrink-0"
+                                            />
+                                            <div className="min-w-0 flex-1">
+                                                <div className="flex items-center justify-between gap-2">
+                                                    <ProofStatusPill status={proof.status} />
+                                                    <span className="text-[10.5px] font-mono text-slate-400">{proof.sentAt}</span>
+                                                </div>
+                                                {proof.notes && (
+                                                    <p className="text-[11.5px] text-slate-600 mt-1.5 leading-snug line-clamp-2">
+                                                        "{proof.notes}"
+                                                    </p>
+                                                )}
+                                                {proof.status === 'rejected' && proof.rejectionReason && (
+                                                    <p className="text-[11.5px] text-rose-700 mt-1.5 leading-snug">
+                                                        Motivo: {proof.rejectionReason}
+                                                    </p>
+                                                )}
+                                                {proof.status === 'approved' && proof.respondedAt && (
+                                                    <p className="text-[10.5px] text-emerald-700 mt-1 font-mono">
+                                                        Aprobada el {proof.respondedAt}
+                                                    </p>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
+                    </div>
+
                     {/* Production notes */}
                     {canEdit && (
                         <div className="px-6 py-4 border-b border-slate-100">
@@ -387,6 +453,20 @@ function DetailRow({ icon, label, value, mono }: { icon: React.ReactNode; label:
                 <p className={`text-[12.5px] text-slate-900 truncate ${mono ? 'font-mono' : 'font-medium'}`}>{value}</p>
             </div>
         </div>
+    );
+}
+
+function ProofStatusPill({ status }: { status: 'pending' | 'approved' | 'rejected' }) {
+    const cfg = {
+        pending: { text: 'Esperando respuesta', cls: 'bg-amber-50 text-amber-700 border-amber-200', icon: <BsHourglassSplit size={9} /> },
+        approved: { text: 'Aprobada', cls: 'bg-emerald-50 text-emerald-700 border-emerald-200', icon: <BsCheckCircle size={9} /> },
+        rejected: { text: 'Rechazada', cls: 'bg-rose-50 text-rose-700 border-rose-200', icon: <BsXCircle size={9} /> },
+    }[status];
+    return (
+        <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium border ${cfg.cls}`}>
+            {cfg.icon}
+            {cfg.text}
+        </span>
     );
 }
 

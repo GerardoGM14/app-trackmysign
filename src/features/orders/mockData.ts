@@ -49,7 +49,16 @@ export const INITIAL_ORDERS: Order[] = [
             { from: 'pending', to: 'in_design', at: inDays(-4), by: 'Anna Schmidt' },
             { from: 'in_design', to: 'in_production', at: inDays(-2), by: 'Anna Schmidt', note: 'Diseño aprobado por cliente' },
         ],
-        proofs: [],
+        proofs: [
+            {
+                id: 'pf-040-1',
+                imageUrl: 'https://images.unsplash.com/photo-1523474438810-b04a2480633c?auto=format&fit=crop&q=80&w=800',
+                sentAt: inDays(-3),
+                status: 'approved',
+                respondedAt: inDays(-2),
+                notes: 'Primera versión del logo en vinilo para escaparate.',
+            },
+        ],
     }),
     build({
         id: 'OR-2026-039',
@@ -68,7 +77,23 @@ export const INITIAL_ORDERS: Order[] = [
             { from: null, to: 'pending', at: inDays(-3), by: 'Hans Weber' },
             { from: 'pending', to: 'in_design', at: inDays(-2), by: 'Diego Ramos' },
         ],
-        proofs: [],
+        proofs: [
+            {
+                id: 'pf-039-1',
+                imageUrl: 'https://images.unsplash.com/photo-1611532736597-de2d4265fba3?auto=format&fit=crop&q=80&w=800',
+                sentAt: inDays(-1),
+                status: 'pending',
+                notes: 'Propuesta de señalética para piso 1. Revisar tipografía y contraste.',
+            },
+            {
+                id: 'pf-039-2',
+                imageUrl: 'https://images.unsplash.com/photo-1586953208448-b95a79798f07?auto=format&fit=crop&q=80&w=800',
+                sentAt: inDays(-2),
+                status: 'rejected',
+                respondedAt: inDays(-1),
+                rejectionReason: 'El color azul es más oscuro que el de la marca. Ajustar a Pantone 2935 C.',
+            },
+        ],
     }),
     build({
         id: 'OR-2026-038',

@@ -41,6 +41,7 @@ import { formatPrice } from '../quotes/pricing';
 import KanbanCard from './KanbanCard';
 import KanbanColumn from './KanbanColumn';
 import OrderDetailDrawer from './OrderDetailDrawer';
+import ProofUploader from './ProofUploader';
 
 interface OrdersPageProps {
     /** Si se setea, filtra por esta persona (para vista del Employee) */
@@ -75,6 +76,7 @@ export default function OrdersPage({ currentEmployee, employees = DEFAULT_EMPLOY
     const [detailOrder, setDetailOrder] = useState<Order | null>(null);
     const [draggingOrder, setDraggingOrder] = useState<Order | null>(null);
     const [exporting, setExporting] = useState(false);
+    const [proofingOrder, setProofingOrder] = useState<Order | null>(null);
 
     const [priorityOpen, setPriorityOpen] = useState(false);
     const [assigneeOpen, setAssigneeOpen] = useState(false);
@@ -254,6 +256,38 @@ export default function OrdersPage({ currentEmployee, employees = DEFAULT_EMPLOY
 
     const handleDownload = (order: Order) => {
         showToast(`Descargando ${order.id}.pdf...`, 'info');
+    };
+
+    const handleSubmitProof = (data: { imageUrl: string; notes: string }) => {
+        if (!proofingOrder) return;
+        const at = new Date().toISOString();
+        const proofId = `pf-${Date.now()}`;
+        const newProof = {
+            id: proofId,
+            imageUrl: data.imageUrl,
+            sentAt: at.split('T')[0],
+            status: 'pending' as const,
+            notes: data.notes || undefined,
+        };
+        const by = currentEmployee ?? 'Hans Weber';
+        setOrders((prev) =>
+            prev.map((o) =>
+                o.id === proofingOrder.id
+                    ? {
+                        ...o,
+                        proofs: [...o.proofs, newProof],
+                        history: [...o.history, { from: o.status, to: o.status, at, by, note: 'Prueba enviada al cliente' }],
+                    }
+                    : o,
+            ),
+        );
+        setDetailOrder((prev) =>
+            prev && prev.id === proofingOrder.id
+                ? { ...prev, proofs: [...prev.proofs, newProof] }
+                : prev,
+        );
+        setProofingOrder(null);
+        showToast(`Prueba enviada a ${proofingOrder.customer.email}.`, 'success');
     };
 
     /* ---------- Excel export ---------- */
@@ -548,6 +582,15 @@ export default function OrdersPage({ currentEmployee, employees = DEFAULT_EMPLOY
                         onSaveNotes={handleSaveNotes}
                         onCancel={handleCancel}
                         onDownload={() => handleDownload(detailOrder)}
+                        onSendProof={() => setProofingOrder(detailOrder)}
+                    />
+                )}
+                {proofingOrder && (
+                    <ProofUploader
+                        orderId={proofingOrder.id}
+                        customerEmail={proofingOrder.customer.email}
+                        onClose={() => setProofingOrder(null)}
+                        onSubmit={handleSubmitProof}
                     />
                 )}
                 {exporting && (
